@@ -3,48 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Load GeoJSON</title>
-    <link rel="stylesheet" href="./static/app.css">
-        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <title>Visor GeoJSON Pro</title>
+    <link rel="stylesheet" href="/static/app.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+
 </head>
 <body>
-    <div class="container">
-        <h1>Load and verfy GeoJSON</h1>
-        <p>Upload your file to validate CRS, geometris and reproyect to EPSG:4326.</p>
-
-        <form id="uploadForm" class="upload-card">
-            <div class="form-group">
-                <label for="fileInput">Archivo GeoJSON:</label>
-                
-                <div class="custom-file-wrapper">
-                    <!-- 1. El input real está oculto pero sigue funcionando -->
-                    <input type="file" id="fileInput" name="file" accept=".geojson,.json" required hidden>
-                    
-                    <!-- 2. Este label actúa como tu botón personalizado -->
-                    <label for="fileInput" class="btn-custom-file">Select file</label>
-                    
-                    <!-- 3. Aquí mostraremos el nombre del archivo seleccionado -->
-                    <span id="fileNameDisplay" class="file-name">None File Selected</span>
-                </div>
-            </div>
-
-            <div class="actions">
-                <button type="submit" id="submitBtn" class="btn btn-primary">Load File</button>
-                <button type="button" id="cancelBtn" class="btn btn-secondary hidden">Cancel / Restart</button>
-            </div>
-        </form>
-
-        <!-- Áreas de Mensajes -->
-        <div id="successArea" class="message-box success hidden"></div>
-        <div id="warningArea" class="message-box warning hidden"></div>
-        <div id="errorArea" class="message-box error hidden"></div>
-        <!-- Contenedor del Mapa (Leaflet requiere que tenga una altura definida) -->
-        <div id="map" class="hidden" style="height: 500px; margin-top: 20px; border-radius: 8px; border: 1px solid #ccc;"></div>
+    <!-- Contenedor principal que ocupa toda la pantalla -->
+    <div class="app-container">
+        <!-- El Mapa ocupa todo el espacio -->
+        <div id="map"></div>
+        <!-- Contenedor de Toasts (Notificaciones) -->
+        <div id="toastContainer" class="toast-container"></div>
     </div>
-
-    <!-- NUEVO: Contenedor para notificaciones flotantes (Toasts) -->
-    <div id="toastContainer" class="toast-container"></div>
+    <!-- 1. Primero cargamos Leaflet -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="./static/app.js"></script>
+    <!-- 2. Luego nuestro módulo personalizado del desplegable -->
+    <script src="/static/menu_principal.js"></script>
+    <!-- 3. Finalmente, la lógica principal de la app -->
+    <script src="/static/app.js"></script>
 </body>
 </html>

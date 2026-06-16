@@ -1,155 +1,129 @@
 :root {
     --primary: #2563eb;
-    --success: #16a34a;
-    --warning: #ca8a04;
-    --warning-bg: #fef9c3;
-    --error: #dc2626;
-    --error-bg: #fee2e2;
     --bg: #f8fafc;
-    --card: #ffffff;
 }
 
-body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background-color: var(--bg);
-    color: #334155;
-    display: flex;
-    justify-content: center;
-    padding: 2rem;
-}
+body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
+.app-container { position: relative; width: 100vw; height: 100vh; }
+#map { width: 100%; height: 100%; z-index: 1; }
 
-.container {
-    max-width: 600px;
-    width: 100%;
-}
-
-h1 { color: #0f172a; margin-bottom: 0.5rem; }
-p { color: #64748b; margin-bottom: 2rem; }
-
-.upload-card {
-    background: var(--card);
-    padding: 1.5rem;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-}
-
-.form-group { margin-bottom: 1rem; }
-.form-group label { display: block; font-weight: 600; margin-bottom: 0.5rem; }
-.form-group input[type="file"], .form-group input[type="number"] {
-    width: 100%;
-    padding: 0.5rem;
-    border: 1px solid #cbd5e1;
+/* --- Menú Principal Unificado --- */
+.leaflet-main-menu {
+    background: #ffffff;
     border-radius: 4px;
-    box-sizing: border-box;
-}
-.form-group small { color: #64748b; font-size: 0.875rem; }
-
-.actions { display: flex; gap: 1rem; margin-top: 1.5rem; }
-
-.btn {
-    padding: 0.5rem 1rem;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: 600;
-    transition: opacity 0.2s;
-}
-.btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.btn-primary { background: var(--primary); color: white; }
-.btn-secondary { background: #e2e8f0; color: #334155; }
-
-#map {
-    height: 500px;
-    width: 100%;
-    margin-top: 1.5rem;
-    border-radius: 8px;
-    border: 1px solid #cbd5e1;
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-    z-index: 1; /* Asegura que quede por encima de otros elementos */
+    box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+    margin-right: 10px !important;
+    margin-top: 10px !important;
+    width: 40px;
+    transition: width 0.3s ease;
+    overflow: hidden;
 }
 
+.leaflet-main-menu.expanded {
+    width: 280px;
+}
 
-.hidden { display: none !important; }
-
-
-/* Contenedor para alinear el botón y el texto */
-.custom-file-wrapper {
+.main-menu-header {
+    width: 40px;
+    height: 40px;
     display: flex;
     align-items: center;
-    gap: 15px;
-    margin-top: 5px;
-}
-
-/* Estilo del botón personalizado */
-.btn-custom-file {
-    background-color: #f1f5f9;
-    border: 1px solid #cbd5e1;
-    color: #334155;
-    padding: 8px 16px;
-    border-radius: 6px;
+    justify-content: center;
     cursor: pointer;
-    font-weight: 600;
-    font-size: 0.9rem;
-    transition: all 0.2s;
+    font-size: 1.5rem;
+    color: #333;
+    border-bottom: 1px solid #eee;
+}
+.main-menu-header:hover { background: #f4f4f4; }
+
+.main-menu-content {
+    max-height: 500px;
+    overflow-y: auto;
+    display: none;
+}
+.leaflet-main-menu.expanded .main-menu-content { display: block; }
+
+.menu-section {
+    padding: 10px;
+    border-bottom: 1px solid #f0f0f0;
 }
 
-.btn-custom-file:hover {
-    background-color: #e2e8f0;
-    border-color: #94a3b8;
+.menu-section-title {
+    font-size: 0.75em;
+    font-weight: bold;
+    color: #888;
+    text-transform: uppercase;
+    margin-bottom: 8px;
 }
 
-/* Estilo del texto que muestra el nombre del archivo */
-.file-name {
-    font-size: 0.9rem;
-    color: #64748b;
-    font-style: italic;
-}
-
-
-/* Contenedor fijo en la esquina superior derecha */
-.toast-container {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 9999; /* Por encima de todo, incluido el mapa */
+.menu-row {
     display: flex;
-    flex-direction: column;
-    gap: 10px;
-    pointer-events: none; /* Permite hacer clic a través del contenedor vacío */
+    align-items: center;
+    padding: 6px 0;
+    font-size: 0.85rem;
 }
 
+.menu-radio, .menu-checkbox {
+    margin-right: 8px;
+    cursor: pointer;
+}
 
+.menu-label {
+    flex-grow: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-right: 5px;
+}
 
+.menu-btns {
+    display: flex;
+    gap: 4px;
+}
 
-/* Estilo individual de cada notificación */
+.menu-btns button {
+    background: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    cursor: pointer;
+    padding: 2px 5px;
+    font-size: 0.75rem;
+    line-height: 1;
+}
+.menu-btns button:hover { background: #e2e8f0; }
+.menu-btns .btn-remove { color: #dc2626; border-color: #fca5a5; }
+.menu-btns .btn-remove:hover { background: #fee2e2; }
+
+/* Formulario de carga */
+.menu-form-group { margin-bottom: 8px; }
+.menu-form-group label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px; color: #555; }
+.menu-form-group input[type="number"] { width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px; box-sizing: border-box; font-size: 0.85rem; }
+
+.custom-file-wrapper { display: flex; align-items: center; gap: 8px; }
+.btn-select-file {
+    background: #f0f0f0; border: 1px solid #ccc; padding: 4px 8px; border-radius: 3px;
+    cursor: pointer; font-size: 0.8rem; font-weight: 600; color: #333;
+}
+.btn-select-file:hover { background: #e0e0e0; }
+.file-name { font-size: 0.75rem; color: #666; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100px; }
+
+.menu-actions { display: flex; gap: 5px; margin-top: 10px; }
+.btn { flex: 1; padding: 6px; border: none; border-radius: 3px; cursor: pointer; font-weight: 600; font-size: 0.8rem; }
+.btn-primary { background: var(--primary); color: white; }
+.btn-primary:hover { background: #1d4ed8; }
+.btn-secondary { background: #e2e8f0; color: #475569; }
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.hidden { display: none !important; }
+
+/* Toasts */
+.toast-container { position: fixed; top: 20px; right: 20px; z-index: 2000; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
 .toast {
-    background: #ffffff;
-    border-left: 5px solid #16a34a; /* Verde para éxito */
-    padding: 1rem 1.5rem;
-    border-radius: 6px;
-    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
-    font-size: 0.9rem;
-    color: #334155;
-    min-width: 250px;
-    max-width: 350px;
-    pointer-events: auto; /* Permite interactuar con el toast si es necesario */
-    animation: slideIn 0.3s ease-out forwards;
+    background: #ffffff; border-left: 5px solid #16a34a; padding: 12px 16px; border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-size: 0.85rem; color: #334155; min-width: 250px;
+    pointer-events: auto; animation: slideIn 0.3s ease-out forwards;
 }
-
 .toast.warning { border-left-color: #ca8a04; }
 .toast.error { border-left-color: #dc2626; }
-
-/* Animación de entrada y salida */
-@keyframes slideIn {
-    from { transform: translateX(100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-}
-
-@keyframes fadeOut {
-    from { opacity: 1; }
-    to { opacity: 0; transform: translateY(-10px); }
-}
-
-.toast.hiding {
-    animation: fadeOut 0.3s ease-in forwards;
-}
+.toast.hiding { animation: fadeOut 0.3s ease-in forwards; }
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes fadeOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-10px); } }
