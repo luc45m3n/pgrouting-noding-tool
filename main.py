@@ -1,8 +1,9 @@
 import json
-from fastapi import FastAPI, UploadFile, Form, HTTPException, status
+from fastapi import FastAPI, UploadFile, Form, File, HTTPException, status
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from geo_processor import GeoJSONProcessor, UnknownCRSError, GeoProcessingError, InvalidGeometryError
+
 
 app = FastAPI(title="API de Procesamiento Geoespacial")
 
@@ -13,7 +14,7 @@ geo_processor = GeoJSONProcessor()
 
 @app.post("/api/v1/geojson/process", status_code=status.HTTP_200_OK)
 async def process_geojson_endpoint(
-    file: UploadFile,
+    file: UploadFile = File(..., max_size=50 * 1024 * 1024, description="Archivo GeoJSON (Máx 50MB)"),
     source_epsg: int | None = Form(default=None, description="Código EPSG de origen si el archivo no lo declara")
 ):
     try:
@@ -25,7 +26,10 @@ async def process_geojson_endpoint(
         gdf_simplified.geometry = gdf_simplified.geometry.simplify(tolerance=0.01)
         
         # 2. Convertir a GeoJSON y luego a diccionario Python
-        geojson_dict = json.loads(gdf_simplified.to_json())
+        try:
+            geojson_dict = json.loads(gdf_simplified.to_json())
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error al serializar GeoJSON: {str(e)}")
 
         return {
             "status": "success",

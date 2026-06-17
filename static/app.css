@@ -127,3 +127,12 @@ body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "S
 .toast.hiding { animation: fadeOut 0.3s ease-in forwards; }
 @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-10px); } }
+
+/* Estilo para el botón de Zoom */
+.menu-btns .btn-zoom { 
+    color: #2563eb; 
+    border-color: #bfdbfe; 
+}
+.menu-btns .btn-zoom:hover { 
+    background: #eff6ff; 
+}

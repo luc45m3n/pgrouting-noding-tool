@@ -8,6 +8,7 @@ L.Control.MainMenu = L.Control.extend({
         this._baseMaps = [];
         this._overlays = [];
         this._activeBaseMapName = null;
+        this._formTimeout = null; // 👈 NUEVO: Control de timeouts
 
         const container = L.DomUtil.create('div', 'leaflet-main-menu leaflet-bar');
         
@@ -153,31 +154,50 @@ L.Control.MainMenu = L.Control.extend({
                 label.textContent = item.name;
 
                 const btns = L.DomUtil.create('div', 'menu-btns', row);
-
+                
+                // Botón Zoom
+                const btnZoom = L.DomUtil.create('button', '', btns);
+                btnZoom.innerHTML = '🔍';
+                btnZoom.title = 'Zoom a la extensión de la capa';
+                btnZoom.className = 'btn-zoom';
+                btnZoom.onclick = (e) => {
+                    L.DomEvent.stopPropagation(e);
+                    if (item.layer.getBounds && item.layer.getBounds().isValid()) {
+                        this._map.fitBounds(item.layer.getBounds(), { padding: [30, 30] });
+                    } else {
+                        if(window.showToast) window.showToast("No se puede hacer zoom (geometría inválida)", "warning", 3000);
+                    }
+                };
+                
+                // Botón Subir
                 const btnUp = L.DomUtil.create('button', '', btns);
                 btnUp.innerHTML = '⬆️';
                 btnUp.title = 'Subir';
-                btnUp.onclick = () => this.moveLayer(item.id, 1);
+                btnUp.onclick = (e) => { L.DomEvent.stopPropagation(e); this.moveLayer(item.id, 1); };
 
+                // Botón Bajar
                 const btnDown = L.DomUtil.create('button', '', btns);
                 btnDown.innerHTML = '⬇️';
                 btnDown.title = 'Bajar';
-                btnDown.onclick = () => this.moveLayer(item.id, -1);
+                btnDown.onclick = (e) => { L.DomEvent.stopPropagation(e); this.moveLayer(item.id, -1); };
 
+                // Botón Eliminar
                 const btnRem = L.DomUtil.create('button', '', btns);
                 btnRem.innerHTML = '🗑️';
                 btnRem.title = 'Eliminar';
                 btnRem.className = 'btn-remove';
-                btnRem.onclick = () => {
-                    this._map.removeLayer(item.layer);
-                    this.removeLayer(item.id);
-                    if(window.showToast) window.showToast("Capa eliminada", "success", 2000);
+                btnRem.onclick = (e) => { 
+                    L.DomEvent.stopPropagation(e);
+                    this._map.removeLayer(item.layer); 
+                    this.removeLayer(item.id); 
+                    if(window.showToast) window.showToast("Capa eliminada", "success", 2000); 
                 };
             });
         }
 
-        // Inicializar eventos del formulario después de renderizar
-        setTimeout(() => this._initFormEvents(), 50);
+        // 👇 CORREGIDO: Evita acumulación de timeouts
+        if (this._formTimeout) clearTimeout(this._formTimeout);
+        this._formTimeout = setTimeout(() => this._initFormEvents(), 50);
     },
 
     _initFormEvents: function () {
@@ -191,14 +211,16 @@ L.Control.MainMenu = L.Control.extend({
 
         if (!form || !fileInput) return;
 
-        fileInput.addEventListener('change', function() {
+        //  CAMBIADO: Asignación directa en lugar de addEventListener
+        fileInput.onchange = function() {
             if (this.files && this.files.length > 0) {
                 fileNameDisplay.textContent = this.files[0].name;
                 fileNameDisplay.style.color = '#16a34a';
             }
-        });
+        };
 
-        form.addEventListener('submit', async (e) => {
+        // 👇 CAMBIADO: onsubmit sobrescribe cualquier listener previo
+        form.onsubmit = async (e) => {
             e.preventDefault();
             if (!fileInput.files.length) {
                 if(window.showToast) window.showToast("Selecciona un archivo", "error");
@@ -235,6 +257,7 @@ L.Control.MainMenu = L.Control.extend({
                 
                 form.reset();
                 fileNameDisplay.textContent = 'Ninguno';
+                fileNameDisplay.style.color = '#666';
                 epsgGroup.classList.add('hidden');
 
             } catch (err) {
@@ -243,12 +266,14 @@ L.Control.MainMenu = L.Control.extend({
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Cargar';
             }
-        });
+        };
 
-        cancelBtn.addEventListener('click', () => {
+        // 👇 CAMBIADO: onclick directo
+        cancelBtn.onclick = () => {
             form.reset();
             epsgGroup.classList.add('hidden');
             fileNameDisplay.textContent = 'Ninguno';
-        });
+            fileNameDisplay.style.color = '#666';
+        };
     }
 });
