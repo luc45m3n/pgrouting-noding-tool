@@ -136,3 +136,13 @@ body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "S
 .menu-btns .btn-zoom:hover { 
     background: #eff6ff; 
 }
+
+/* ===== REDES DE RUTEO EN EL MENÚ ===== */
+.network-item.active {
+    background: #f0fdf4;
+    border-left: 3px solid #16a34a;
+}
+
+.network-item:hover {
+    background: #f9fafb;
+}
