@@ -2,18 +2,17 @@
 
 let mapInstance = null;
 let layerCounter = 0;
-window.lastLoadedLayer = null;
+let routingPanel = null;
+let networkLayer = null;
 
-// ============================================================
-// 🆕 VARIABLES GLOBALES DE RUTEo
-// ============================================================
-window.activeNetwork = null;  // Nombre de la red activa (ej: "net_a1b2c3d4")
-let networkLayer = null;      // Capa Leaflet de la red activa
+window.lastLoadedLayer = null;
+window.activeNetwork = null;
+window.routingPanel = null;
 
 function initMap() {
     mapInstance = L.map('map').setView([0, 0], 2);
     window.mapInstance = mapInstance;
-
+    
     const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors', maxZoom: 19
     });
@@ -22,17 +21,24 @@ function initMap() {
         attribution: 'Tiles &copy; Esri', maxZoom: 19
     });
 
-    // Crear el menú unificado
     window.mainMenu = new L.Control.MainMenu({ position: 'topright' }).addTo(mapInstance);
     
-    // Registrar mapas base
     window.mainMenu.addBaseMap(osmLayer, "Callejero (OSM)");
     window.mainMenu.addBaseMap(satelliteLayer, "Satélite (Esri)");
+    
+    // ✅ Crear panel de ruteo DESPUÉS de que mapInstance existe
+    if (typeof RoutingPanel !== 'undefined') {
+        routingPanel = new RoutingPanel(mapInstance);
+        window.routingPanel = routingPanel;
+        console.log('✅ Panel de ruteo creado');
+    } else {
+        console.error('❌ RoutingPanel no está definido. Verificá que routing_panel.js se cargue antes que app.js');
+    }
 }
 
 function addLayerToMap(geojsonData, originalFileName) {
     layerCounter++;
-    const layerName = originalFileName ? originalFileName.replace(/\.(geo)?json$/, '') : `Capa ${layerCounter}`;
+    const layerName = originalFileName ? originalFileName.replace(/\.(geo)?json$/, '') : 'Capa ' + layerCounter;
 
     const newLayer = L.geoJSON(geojsonData, {
         style: { color: "#2563eb", weight: 2, fillColor: "#3b82f6", fillOpacity: 0.4 },
@@ -46,7 +52,7 @@ function addLayerToMap(geojsonData, originalFileName) {
                     const value = feature.properties[key];
                     if (value !== null && value !== undefined && value !== "") {
                         const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                        popupContent += `<li style="margin-bottom: 4px;"><b>${formattedKey}:</b> ${value}</li>`;
+                        popupContent += '<li style="margin-bottom: 4px;"><b>' + formattedKey + ':</b> ' + value + '</li>';
                         if (!firstPropertyFound) firstPropertyFound = value;
                         hasData = true;
                     }
@@ -59,7 +65,7 @@ function addLayerToMap(geojsonData, originalFileName) {
         }
     }).addTo(mapInstance);
 
-        window.lastLoadedLayer = {
+    window.lastLoadedLayer = {
         layer: newLayer,
         layerId: newLayer._leaflet_id,
         name: layerName
@@ -70,7 +76,6 @@ function addLayerToMap(geojsonData, originalFileName) {
     if (newLayer.getBounds().isValid()) {
         mapInstance.fitBounds(newLayer.getBounds(), { padding: [50, 50] });
     }
-
 }
 
 window.removeLayer = function(layerId) {
@@ -98,27 +103,17 @@ window.moveLayerToBack = function(layerId) {
     }
 };
 
-// ============================================================
-// 🆕 FUNCIONES DE RUTEo
-// ============================================================
-
-/**
- * Activa una red para ruteo
- */
 window.setActiveNetwork = async function(tableName) {
     try {
-        // Cargar GeoJSON de la red
-        const response = await fetch(`/api/networks/${tableName}/geojson`);
+        const response = await fetch('/api/networks/' + tableName + '/geojson');
         if (!response.ok) throw new Error('Error cargando red');
         
         const geojson = await response.json();
         
-        // Remover capa anterior si existe
         if (networkLayer) {
             mapInstance.removeLayer(networkLayer);
         }
         
-        // Crear nueva capa
         networkLayer = L.geoJSON(geojson, {
             style: { 
                 color: "#16a34a", 
@@ -126,77 +121,76 @@ window.setActiveNetwork = async function(tableName) {
                 opacity: 0.7 
             },
             onEachFeature: function(feature, layer) {
-                layer.bindTooltip(`Arista #${feature.properties.gid}`, { sticky: true });
+                layer.bindTooltip('Arista #' + feature.properties.gid, { sticky: true });
             }
         }).addTo(mapInstance);
         
-        // Ajustar vista
         if (networkLayer.getBounds().isValid()) {
             mapInstance.fitBounds(networkLayer.getBounds(), { padding: [50, 50] });
         }
         
-        // Guardar red activa
         window.activeNetwork = tableName;
         
         if(window.showToast) {
-            window.showToast(`🛣️ Red activa: ${tableName}`, 'success', 3000);
+            window.showToast('Red activa: ' + tableName, 'success', 3000);
         }
         
-        // Refrescar lista del menú
         if (window.mainMenu) {
             window.mainMenu._loadNetworksList();
         }
         
-        console.log('✅ Red activa:', tableName);
+        // ✅ MOSTRAR PANEL DE RUTEO AUTOMÁTICAMENTE
+        if (window.routingPanel) {
+            window.routingPanel.updateNetworkStatus();
+        }
+        
+        console.log('Red activa:', tableName);
         
     } catch (err) {
-        if(window.showToast) window.showToast(`❌ Error: ${err.message}`, 'error', 4000);
+        if(window.showToast) window.showToast('Error: ' + err.message, 'error', 4000);
     }
 };
 
-/**
- * Elimina una red
- */
 window.deleteNetwork = async function(tableName) {
-    if (!confirm(`¿Eliminar la red "${tableName}"?`)) return;
+    if (!confirm('¿Eliminar la red "' + tableName + '"?')) return;
     
     try {
-        const response = await fetch(`/api/networks/${tableName}`, { method: 'DELETE' });
+        const response = await fetch('/api/networks/' + tableName, { method: 'DELETE' });
         if (!response.ok) throw new Error('Error eliminando red');
         
-        // Si era la red activa, desactivarla
         if (window.activeNetwork === tableName) {
             window.activeNetwork = null;
             if (networkLayer) {
                 mapInstance.removeLayer(networkLayer);
                 networkLayer = null;
             }
+            
+            // ✅ OCULTAR PANEL DE RUTEO
+            if (window.routingPanel) {
+                window.routingPanel.hide();
+            }
         }
         
         if(window.showToast) {
-            window.showToast(`🗑️ Red eliminada: ${tableName}`, 'success', 3000);
+            window.showToast('Red eliminada: ' + tableName, 'success', 3000);
         }
         
-        // Refrescar lista
         if (window.mainMenu) {
             window.mainMenu._loadNetworksList();
         }
         
     } catch (err) {
-        if(window.showToast) window.showToast(`❌ Error: ${err.message}`, 'error', 4000);
+        if(window.showToast) window.showToast('Error: ' + err.message, 'error', 4000);
     }
 };
 
-/**
- * Obtiene el nodo más cercano en la red activa
- */
 window.getNearestNode = async function(lng, lat) {
     if (!window.activeNetwork) {
         throw new Error('No hay red activa. Carga una red primero.');
     }
     
     const response = await fetch(
-        `/api/networks/${window.activeNetwork}/nearest-node?lon=${lng}&lat=${lat}`
+        '/api/networks/' + window.activeNetwork + '/nearest-node?lon=' + lng + '&lat=' + lat
     );
     
     if (!response.ok) {
@@ -206,16 +200,13 @@ window.getNearestNode = async function(lng, lat) {
     return await response.json();
 };
 
-/**
- * Calcula la ruta más corta en la red activa
- */
 window.calculateShortestPath = async function(startNode, endNode) {
     if (!window.activeNetwork) {
         throw new Error('No hay red activa. Carga una red primero.');
     }
     
     const response = await fetch(
-        `/api/networks/${window.activeNetwork}/shortest-path`, 
+        '/api/networks/' + window.activeNetwork + '/shortest-path', 
         {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -231,16 +222,13 @@ window.calculateShortestPath = async function(startNode, endNode) {
     return await response.json();
 };
 
-/**
- * Calcula ruta TSP en la red activa
- */
 window.calculateTSP = async function(waypoints, startNode) {
     if (!window.activeNetwork) {
         throw new Error('No hay red activa. Carga una red primero.');
     }
     
     const response = await fetch(
-        `/api/networks/${window.activeNetwork}/tsp`, 
+        '/api/networks/' + window.activeNetwork + '/tsp', 
         {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -259,13 +247,19 @@ window.calculateTSP = async function(waypoints, startNode) {
     return await response.json();
 };
 
-function showToast(message, type = 'success', duration = 4000) {
+function showToast(message, type, duration) {
+    type = type || 'success';
+    duration = duration || 4000;
+    
     const container = document.getElementById('toastContainer');
+    if (!container) return;
+    
     const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    const icons = { success: '✅', warning: '⚠️', error: '❌' };
-    toast.innerHTML = `<strong>${icons[type]}</strong> <span style="font-size: 0.85rem;">${message}</span>`;
+    toast.className = 'toast ' + type;
+    const icons = { success: 'OK', warning: '!', error: 'X' };
+    toast.innerHTML = '<strong>' + (icons[type] || 'OK') + '</strong> <span style="font-size: 0.85rem;">' + message + '</span>';
     container.appendChild(toast);
+    
     if (duration > 0) {
         setTimeout(() => {
             toast.classList.add('hiding');
@@ -277,4 +271,5 @@ function showToast(message, type = 'success', duration = 4000) {
 window.showToast = showToast;
 window.addLayerToMap = addLayerToMap;
 
+// ✅ Inicializar el mapa (esto crea routingPanel internamente)
 initMap();

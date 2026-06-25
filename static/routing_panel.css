@@ -1,0 +1,303 @@
+/* ===== PANEL FLOTANTE DE RUTEO ===== */
+.routing-panel {
+    position: absolute;
+    top: 80px;
+    left: 20px;
+    width: 320px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    z-index: 1000;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    overflow: hidden;
+    border: 1px solid #e0e0e0;
+}
+
+/* Header arrastrable */
+.routing-panel-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 12px 16px;
+    cursor: move;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+}
+
+.routing-panel-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.routing-panel-header .panel-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.routing-panel-header button {
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.routing-panel-header button:hover {
+    background: rgba(255,255,255,0.3);
+}
+
+/* Cuerpo del panel */
+.routing-panel-body {
+    padding: 16px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+/* Grupos de formulario */
+.routing-form-group {
+    margin-bottom: 12px;
+}
+
+.routing-form-group label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.routing-form-group select,
+.routing-form-group input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 13px;
+    box-sizing: border-box;
+}
+
+.routing-form-group select:focus,
+.routing-form-group input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+/* Estado de la red activa */
+.network-status {
+    padding: 8px 12px;
+    background: #f0f9ff;
+    border-left: 3px solid #3b82f6;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-bottom: 12px;
+}
+
+.network-status.error {
+    background: #fef2f2;
+    border-left-color: #dc3545;
+    color: #dc3545;
+}
+
+.network-status strong {
+    color: #1e40af;
+}
+
+/* Lista de puntos */
+.waypoints-list {
+    margin: 12px 0;
+    padding: 0;
+    list-style: none;
+}
+
+.waypoint-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    font-size: 13px;
+    border-left: 3px solid #667eea;
+}
+
+.waypoint-item.origin {
+    border-left-color: #10b981;
+    background: #ecfdf5;
+}
+
+.waypoint-item.destination {
+    border-left-color: #ef4444;
+    background: #fef2f2;
+}
+
+.waypoint-item .wp-number {
+    background: #667eea;
+    color: white;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.waypoint-item.origin .wp-number { background: #10b981; }
+.waypoint-item.destination .wp-number { background: #ef4444; }
+
+.waypoint-item .wp-coords {
+    flex: 1;
+    font-size: 11px;
+    color: #666;
+    font-family: monospace;
+}
+
+.waypoint-item .wp-remove {
+    background: none;
+    border: none;
+    color: #dc3545;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 4px;
+}
+
+/* Instrucciones */
+.routing-instructions {
+    font-size: 12px;
+    color: #666;
+    padding: 8px;
+    background: #fffbeb;
+    border-radius: 4px;
+    margin-bottom: 12px;
+    border-left: 3px solid #f59e0b;
+}
+
+/* Botones de acción */
+.routing-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.routing-btn {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.routing-btn-primary {
+    background: #667eea;
+    color: white;
+}
+
+.routing-btn-primary:hover:not(:disabled) {
+    background: #5568d3;
+    transform: translateY(-1px);
+}
+
+.routing-btn-primary:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+.routing-btn-secondary {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.routing-btn-secondary:hover {
+    background: #e2e8f0;
+}
+
+.routing-btn-danger {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.routing-btn-danger:hover {
+    background: #fecaca;
+}
+
+/* Marcadores en el mapa */
+.marker-origin {
+    background: #10b981;
+    border: 3px solid white;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+.marker-destination {
+    background: #ef4444;
+    border: 3px solid white;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+.marker-waypoint {
+    background: #667eea;
+    border: 3px solid white;
+    border-radius: 50%;
+    width: 14px;
+    height: 14px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+/* Panel colapsado */
+.routing-panel.collapsed .routing-panel-body {
+    display: none;
+}
+
+/* Indicador de carga */
+.routing-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px;
+    color: #667eea;
+    font-size: 13px;
+}
+
+.routing-loading .spinner {
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #667eea;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

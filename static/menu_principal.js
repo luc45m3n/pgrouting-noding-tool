@@ -9,12 +9,12 @@ L.Control.MainMenu = L.Control.extend({
         this._overlays = [];
         this._activeBaseMapName = null;
         this._formTimeout = null;
-        this._showNetworkPanel = false; // ✅ NUEVO: recordar estado del panel
+        this._showNetworkPanel = false;
 
         const container = L.DomUtil.create('div', 'leaflet-main-menu leaflet-bar');
         
         const header = L.DomUtil.create('div', 'main-menu-header', container);
-        header.innerHTML = '☰';
+        header.innerHTML = '&#9776;';
         header.title = 'Menú principal';
         header.onclick = () => container.classList.toggle('expanded');
 
@@ -73,20 +73,20 @@ L.Control.MainMenu = L.Control.extend({
 
     _updateContent: function () {
         this._contentContainer.innerHTML = '';
-        
+
         // SECCIÓN 1: Mapas Base
         if (this._baseMaps.length > 0) {
             const section1 = L.DomUtil.create('div', 'menu-section', this._contentContainer);
             const title1 = L.DomUtil.create('div', 'menu-section-title', section1);
             title1.textContent = 'Mapa Base';
-            
+
             this._baseMaps.forEach((item) => {
                 const row = L.DomUtil.create('div', 'menu-row', section1);
                 const radio = L.DomUtil.create('input', 'menu-radio', row);
                 radio.type = 'radio';
                 radio.name = 'basemap-group';
                 radio.checked = (this._activeBaseMapName === item.name);
-                
+
                 radio.onchange = () => {
                     this._baseMaps.forEach(bm => this._map.removeLayer(bm.layer));
                     this._map.addLayer(item.layer);
@@ -94,18 +94,18 @@ L.Control.MainMenu = L.Control.extend({
                     this._activeBaseMapName = item.name;
                     this._updateContent();
                 };
-                
+
                 const label = L.DomUtil.create('span', 'menu-label', row);
                 label.textContent = item.name;
             });
         }
 
-        // SECCIÓN 2: Carga GeoJSON
+        // SECCIÓN 2: Carga GeoJSON (TODO EL HTML EN UN SOLO TEMPLATE LITERAL)
         const section2 = L.DomUtil.create('div', 'menu-section', this._contentContainer);
         const title2 = L.DomUtil.create('div', 'menu-section-title', section2);
         title2.textContent = 'Cargar GeoJSON';
 
-        section2.innerHTML += `
+        section2.innerHTML = `
             <form id="uploadForm" style="padding: 8px;">
                 <div class="menu-form-group">
                     <label for="fileInput">Archivo:</label>
@@ -125,20 +125,19 @@ L.Control.MainMenu = L.Control.extend({
                 </div>
             </form>
 
-            <!-- Panel de procesamiento de red (oculto inicialmente) -->
             <div id="networkProcessingPanel" style="display: none; margin-top: 10px; padding: 8px; background: #f0f9ff; border-radius: 4px; border-left: 3px solid #3b82f6;">
                 <div style="font-size: 0.9em; margin-bottom: 8px;">
-                    <strong>🛣️ Este archivo tiene líneas</strong><br>
+                    <strong> Este archivo tiene líneas</strong><br>
                     <small style="color: #666;">¿Querés procesarlo como red ruteable?</small>
                 </div>
-                
+
                 <div class="menu-form-group">
                     <label style="display: flex; align-items: center; gap: 6px; font-size: 0.9em;">
                         <input type="checkbox" id="processAsNetworkCheckbox" checked>
                         <span>Sí, procesar como red</span>
                     </label>
                 </div>
-                
+
                 <div id="utmOptions" style="display: block;">
                     <div class="menu-form-group">
                         <label for="utmEpsgInput">Proyección UTM destino:</label>
@@ -153,18 +152,24 @@ L.Control.MainMenu = L.Control.extend({
                         <small style="color: #666; font-size: 0.75em;">Dejá en blanco para usar WGS84</small>
                     </div>
                 </div>
-                
+
                 <button type="button" id="processNetworkBtn" class="btn btn-primary" style="width: 100%; margin-top: 8px;">
-                    ⚙️ Procesar
+                    ⚙️ Procesar como red
                 </button>
             </div>
 
             <div id="networksListContainer" style="margin-top: 10px; max-height: 200px; overflow-y: auto; border-top: 1px solid #eee; padding-top: 8px;">
                 <em style="color: #888; font-size: 0.85em;">No hay redes cargadas</em>
             </div>
+
+            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee;">
+                <button type="button" id="toggleRoutingPanel" class="btn btn-primary" style="width: 100%;">
+                    Abrir panel de ruteo
+                </button>
+            </div>
         `;
 
-        // ✅ NUEVO: Restaurar estado del panel después de recrear el HTML
+        // Restaurar estado del panel
         if (this._showNetworkPanel) {
             const panel = document.getElementById('networkProcessingPanel');
             if (panel) panel.style.display = 'block';
@@ -195,7 +200,7 @@ L.Control.MainMenu = L.Control.extend({
                 label.textContent = item.name;
 
                 const btns = L.DomUtil.create('div', 'menu-btns', row);
-                
+
                 const btnZoom = L.DomUtil.create('button', '', btns);
                 btnZoom.innerHTML = '🔍';
                 btnZoom.title = 'Zoom a la extensión de la capa';
@@ -205,17 +210,17 @@ L.Control.MainMenu = L.Control.extend({
                     if (item.layer.getBounds && item.layer.getBounds().isValid()) {
                         this._map.fitBounds(item.layer.getBounds(), { padding: [30, 30] });
                     } else {
-                        if(window.showToast) window.showToast("No se puede hacer zoom (geometría inválida)", "warning", 3000);
+                        if(window.showToast) window.showToast("No se puede hacer zoom", "warning", 3000);
                     }
                 };
-                
+
                 const btnUp = L.DomUtil.create('button', '', btns);
-                btnUp.innerHTML = '&#8593';
+                btnUp.innerHTML = '⬆️';
                 btnUp.title = 'Subir';
                 btnUp.onclick = (e) => { L.DomEvent.stopPropagation(e); this.moveLayer(item.id, 1); };
 
                 const btnDown = L.DomUtil.create('button', '', btns);
-                btnDown.innerHTML = '️&#8595';
+                btnDown.innerHTML = '⬇️';
                 btnDown.title = 'Bajar';
                 btnDown.onclick = (e) => { L.DomEvent.stopPropagation(e); this.moveLayer(item.id, -1); };
 
@@ -251,7 +256,6 @@ L.Control.MainMenu = L.Control.extend({
 
         if (!form || !fileInput) return;
 
-        // Evento: seleccionar archivo
         fileInput.onchange = function() {
             if (this.files && this.files.length > 0) {
                 fileNameDisplay.textContent = this.files[0].name;
@@ -259,7 +263,6 @@ L.Control.MainMenu = L.Control.extend({
             }
         };
 
-        // Evento: cargar GeoJSON (solo visualización)
         form.onsubmit = async (e) => {
             e.preventDefault();
             if (!fileInput.files.length) {
@@ -282,180 +285,182 @@ L.Control.MainMenu = L.Control.extend({
                 const data = await response.json();
             
                 if (!response.ok) {
-                    if (response.status === 400 && data.detail?.error === "CRS Desconocido") {
+                    if (response.status === 400 && data.detail && data.detail.error === "CRS Desconocido") {
                         if(window.showToast) window.showToast("CRS desconocido. Ingresa EPSG", "warning", 0);
                         epsgGroup.classList.remove('hidden');
                     } else {
-                        const errorMsg = data.detail?.message || data.detail || "Error desconocido";
+                        const errorMsg = (data.detail && data.detail.message) || data.detail || "Error desconocido";
                         if(window.showToast) window.showToast(errorMsg, "error");
                     }
                     return;
                 }
-                
-                    const hasLines = data.data.has_lines;
+            
+                const hasLines = data.data.has_lines;
 
-                    if (hasLines) {
-                        if(window.showToast) {
-                            window.showToast(`✅ ${data.data.feature_count} features cargadas (tiene líneas)`, 'success', 3000);
-                        }
-                        window.lastLoadedGeoJSON = data.data.geojson_data;
-                        this._showNetworkPanel = true; // ✅ NUEVO: recordar que debe mostrarse
-                        const panel = document.getElementById('networkProcessingPanel');
-                        if (panel) panel.style.display = 'block';
-                    } else {
-                        if(window.showToast) {
-                            window.showToast(`✅ ${data.data.feature_count} features cargadas`, 'success', 3000);
-                        }
-                        this._showNetworkPanel = false; // ✅ NUEVO: ocultar
-                        const panel = document.getElementById('networkProcessingPanel');
-                        if (panel) panel.style.display = 'none';
+                if (hasLines) {
+                    if(window.showToast) {
+                        window.showToast(data.data.feature_count + " features cargadas (tiene líneas)", 'success', 3000);
                     }
-
-                    if (data.warnings?.length) window.showToast(data.warnings.join(" "), 'warning', 6000);
-
-                    if(window.addLayerToMap) window.addLayerToMap(data.data.geojson_data, file.name);
-
-                    form.reset();
-                    fileNameDisplay.textContent = 'Ninguno';
-                    fileNameDisplay.style.color = '#666';
-                    epsgGroup.classList.add('hidden');
-                
-                } catch (err) {
-                    if(window.showToast) window.showToast(`Error: ${err.message}`, "error", 0);
-                } finally {
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = 'Cargar';
+                    window.lastLoadedGeoJSON = data.data.geojson_data;
+                    this._showNetworkPanel = true;
+                    const panel = document.getElementById('networkProcessingPanel');
+                    if (panel) panel.style.display = 'block';
+                } else {
+                    if(window.showToast) {
+                        window.showToast(data.data.feature_count + " features cargadas", 'success', 3000);
+                    }
+                    this._showNetworkPanel = false;
+                    const panel = document.getElementById('networkProcessingPanel');
+                    if (panel) panel.style.display = 'none';
                 }
-            };
 
-            // Evento: limpiar formulario
-            cancelBtn.onclick = () => {
+                if (data.warnings && data.warnings.length) window.showToast(data.warnings.join(" "), 'warning', 6000);
+
+                if(window.addLayerToMap) window.addLayerToMap(data.data.geojson_data, file.name);
+
                 form.reset();
-                epsgGroup.classList.add('hidden');
                 fileNameDisplay.textContent = 'Ninguno';
                 fileNameDisplay.style.color = '#666';
-                this._showNetworkPanel = false; // ✅ NUEVO: ocultar
-                const panel = document.getElementById('networkProcessingPanel');
-                if (panel) panel.style.display = 'none';
-            };
-
-            // Toggle del checkbox para mostrar/ocultar opciones UTM
-            const processAsNetworkCheckbox = document.getElementById('processAsNetworkCheckbox');
-            const utmOptions = document.getElementById('utmOptions');
-
-            if (processAsNetworkCheckbox && utmOptions) {
-                processAsNetworkCheckbox.onchange = function() {
-                    utmOptions.style.display = this.checked ? 'block' : 'none';
-                };
-            }
-
-            // Evento: procesar como red ruteable
-            const processNetworkBtn = document.getElementById('processNetworkBtn');
-            if (processNetworkBtn) {
-                processNetworkBtn.onclick = async () => {
-                    if (!window.lastLoadedGeoJSON) {
-                        if(window.showToast) window.showToast("No hay GeoJSON cargado", "error");
-                        return;
-                    }
-                
-                    const shouldProcess = processAsNetworkCheckbox ? processAsNetworkCheckbox.checked : true;
-                    
-                    if (!shouldProcess) {
-                        if(window.showToast) {
-                            window.showToast("✅ Archivo cargado solo para visualización", "success", 3000);
-                        }
-                        this._showNetworkPanel = false;
-                        const panel = document.getElementById('networkProcessingPanel');
-                        if (panel) panel.style.display = 'none';
-                        return;
-                    }
-                    
-                    const utmEpsgValue = document.getElementById('utmEpsgInput').value;
-                    const utmEpsg = utmEpsgValue ? parseInt(utmEpsgValue) : 4326;
-                
-                    processNetworkBtn.disabled = true;
-                    processNetworkBtn.textContent = '⏳ Procesando...';
-                
-                    try {
-                        console.log('🔄 Enviando solicitud de procesamiento...');
-                        
-                        const response = await fetch('/api/networks/process', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                geojson: window.lastLoadedGeoJSON,
-                                target_epsg: utmEpsg,
-                                tolerance: 0.5
-                            })
-                        });
-                        
-                        console.log('📡 Status:', response.status);
-                        
-                        // ✅ VALIDAR QUE LA RESPUESTA SEA JSON VÁLIDO
-                        const contentType = response.headers.get('content-type');
-                        if (!contentType || !contentType.includes('application/json')) {
-                            const text = await response.text();
-                            console.error('❌ Respuesta no es JSON:', text.substring(0, 200));
-                            throw new Error('El servidor no devolvió JSON válido');
-                        }
-                        
-                        const data = await response.json();
-                        console.log('📦 Datos recibidos:', data);
-                        
-                        // ✅ VALIDAR QUE DATA NO SEA NULL
-                        if (!data) {
-                            console.error('❌ data es null');
-                            throw new Error('La respuesta del servidor está vacía');
-                        }
-                    
-                        if (!response.ok) {
-                            throw new Error(data.detail || data.message || 'Error al procesar la red');
-                        }
-                        
-                        // ✅ VALIDAR ESTRUCTURA DE LA RESPUESTA
-                        if (!data.table_name) {
-                            console.error('❌ Falta table_name en la respuesta:', data);
-                            throw new Error('La respuesta no contiene table_name');
-                        }
-                    
-                        // ✅ ELIMINAR CAPA ORIGINAL AUTOMÁTICAMENTE
-                        if (window.lastLoadedLayer) {
-                            if (window.mapInstance) {
-                                try { window.mapInstance.removeLayer(window.lastLoadedLayer.layer); } catch(e) {}
-                            }
-                            if (window.mainMenu) {
-                                window.mainMenu.removeLayer(window.lastLoadedLayer.layerId);
-                            }
-                            window.lastLoadedLayer = null;
-                            console.log('️ Capa original eliminada automáticamente');
-                        }
-                    
-                        // ✅ ACTIVAR RED PROCESADA
-                        if(window.setActiveNetwork) {
-                            window.setActiveNetwork(data.table_name);
-                        }
-                    
-                        // Ocultar panel y actualizar lista
-                        this._showNetworkPanel = false;
-                        const panel = document.getElementById('networkProcessingPanel');
-                        if (panel) panel.style.display = 'none';
-                        
-                        this._loadNetworksList();
-                        
-                        if(window.showToast) {
-                            const edges = data.edges || '?';
-                            const vertices = data.vertices || '?';
-                            window.showToast(`✅ Red creada: ${edges} aristas, ${vertices} vértices`, 'success', 5000);
-                        }
-                    
-                    } catch (err) {
-                        console.error('❌ Error en processNetworkBtn:', err);
-                        if(window.showToast) window.showToast(`❌ Error: ${err.message}`, "error", 5000);
-                    } finally {
-                        processNetworkBtn.disabled = false;
-                        processNetworkBtn.textContent = '⚙️ Procesar';
+                epsgGroup.classList.add('hidden');
+            
+            } catch (err) {
+                if(window.showToast) window.showToast("Error: " + err.message, "error", 0);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Cargar';
             }
         };
+
+        cancelBtn.onclick = () => {
+            form.reset();
+            epsgGroup.classList.add('hidden');
+            fileNameDisplay.textContent = 'Ninguno';
+            fileNameDisplay.style.color = '#666';
+            this._showNetworkPanel = false;
+            const panel = document.getElementById('networkProcessingPanel');
+            if (panel) panel.style.display = 'none';
+        };
+
+        // Toggle del checkbox UTM
+        const processAsNetworkCheckbox = document.getElementById('processAsNetworkCheckbox');
+        const utmOptions = document.getElementById('utmOptions');
+
+        if (processAsNetworkCheckbox && utmOptions) {
+            processAsNetworkCheckbox.onchange = function() {
+                utmOptions.style.display = this.checked ? 'block' : 'none';
+            };
+        }
+
+        // Procesar red
+        const processNetworkBtn = document.getElementById('processNetworkBtn');
+        if (processNetworkBtn) {
+            processNetworkBtn.onclick = async () => {
+                if (!window.lastLoadedGeoJSON) {
+                    if(window.showToast) window.showToast("No hay GeoJSON cargado", "error");
+                    return;
+                }
+            
+                const shouldProcess = processAsNetworkCheckbox ? processAsNetworkCheckbox.checked : true;
+                
+                if (!shouldProcess) {
+                    if(window.showToast) {
+                        window.showToast("Archivo cargado solo para visualización", "success", 3000);
+                    }
+                    this._showNetworkPanel = false;
+                    const panel = document.getElementById('networkProcessingPanel');
+                    if (panel) panel.style.display = 'none';
+                    return;
+                }
+                
+                const utmEpsgValue = document.getElementById('utmEpsgInput').value;
+                const utmEpsg = utmEpsgValue ? parseInt(utmEpsgValue) : 4326;
+
+                processNetworkBtn.disabled = true;
+                processNetworkBtn.textContent = 'Procesando...';
+            
+                try {
+                    const response = await fetch('/api/networks/process', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            geojson: window.lastLoadedGeoJSON,
+                            target_epsg: utmEpsg,
+                            tolerance: 0.5
+                        })
+                    });
+                
+                    const contentType = response.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        const text = await response.text();
+                        console.error('Respuesta no es JSON:', text.substring(0, 200));
+                        throw new Error('El servidor no devolvió JSON válido');
+                    }
+                    
+                    const data = await response.json();
+                    
+                    if (!data) {
+                        throw new Error('La respuesta del servidor está vacía');
+                    }
+                
+                    if (!response.ok) {
+                        throw new Error(data.detail || data.message || 'Error al procesar la red');
+                    }
+                    
+                    if (!data.table_name) {
+                        console.error('Falta table_name en la respuesta:', data);
+                        throw new Error('La respuesta no contiene table_name');
+                    }
+                
+                    // Eliminar capa original
+                    if (window.lastLoadedLayer) {
+                        if (window.mapInstance) {
+                            try { window.mapInstance.removeLayer(window.lastLoadedLayer.layer); } catch(e) {}
+                        }
+                        if (window.mainMenu) {
+                            window.mainMenu.removeLayer(window.lastLoadedLayer.layerId);
+                        }
+                        window.lastLoadedLayer = null;
+                        console.log('Capa original eliminada automáticamente');
+                    }
+                
+                    if(window.setActiveNetwork) {
+                        window.setActiveNetwork(data.table_name);
+                    }
+                
+                    this._showNetworkPanel = false;
+                    const panel = document.getElementById('networkProcessingPanel');
+                    if (panel) panel.style.display = 'none';
+                    
+                    this._loadNetworksList();
+                    
+                    if(window.showToast) {
+                        const edges = data.edges || '?';
+                        const vertices = data.vertices || '?';
+                        window.showToast("Red creada: " + edges + " aristas, " + vertices + " vértices", 'success', 5000);
+                    }
+                
+                } catch (err) {
+                    console.error('Error en processNetworkBtn:', err);
+                    if(window.showToast) window.showToast("Error: " + err.message, "error", 5000);
+                } finally {
+                    processNetworkBtn.disabled = false;
+                    processNetworkBtn.textContent = 'Procesar como red';
+                }
+            };
+        }
+
+        // Toggle del panel de ruteo
+        const toggleRoutingBtn = document.getElementById('toggleRoutingPanel');
+        if (toggleRoutingBtn && window.routingPanel) {
+            toggleRoutingBtn.onclick = () => {
+                if (window.routingPanel.panel.style.display === 'none') {
+                    window.routingPanel.show();
+                    toggleRoutingBtn.textContent = 'Ocultar panel de ruteo';
+                } else {
+                    window.routingPanel.hide();
+                    toggleRoutingBtn.textContent = 'Abrir panel de ruteo';
+                }
+            };
         }
     },
 
@@ -474,24 +479,20 @@ L.Control.MainMenu = L.Control.extend({
 
             const activeNetwork = window.activeNetwork || null;
 
-            container.innerHTML = '<strong style="font-size: 0.85em; color: #333;">Redes disponibles:</strong>' + 
-                data.networks.map(net => `
-                    <div class="network-item ${net.table_name === activeNetwork ? 'active' : ''}" 
-                         style="padding: 6px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; font-size: 0.85em;">
-                        <div style="flex: 1; cursor: pointer;" onclick="window.setActiveNetwork('${net.table_name}')">
-                            <strong style="color: ${net.table_name === activeNetwork ? '#16a34a' : '#333'};">
-                                ${net.table_name === activeNetwork ? '✓ ' : ''}${net.table_name}
-                            </strong>
-                            <br>
-                            <small style="color: #666;">${net.edges} aristas · ${net.vertices} vértices</small>
-                        </div>
-                        <button onclick="window.deleteNetwork('${net.table_name}')" 
-                                style="background: #dc3545; color: white; border: none; padding: 3px 8px; border-radius: 3px; cursor: pointer; font-size: 0.8em; margin-left: 5px;"
-                                title="Eliminar red">
-                            🗑️
-                        </button>
-                    </div>
-                `).join('');
+            let html = '<strong style="font-size: 0.85em; color: #333;">Redes disponibles:</strong>';
+            data.networks.forEach(net => {
+                const isActive = net.table_name === activeNetwork;
+                html += '<div class="network-item ' + (isActive ? 'active' : '') + '" style="padding: 6px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; font-size: 0.85em;">';
+                html += '<div style="flex: 1; cursor: pointer;" onclick="window.setActiveNetwork(\'' + net.table_name + '\')">';
+                html += '<strong style="color: ' + (isActive ? '#16a34a' : '#333') + ';">';
+                html += (isActive ? '✓ ' : '') + net.table_name;
+                html += '</strong><br>';
+                html += '<small style="color: #666;">' + net.edges + ' aristas · ' + net.vertices + ' vértices</small>';
+                html += '</div>';
+                html += '<button onclick="window.deleteNetwork(\'' + net.table_name + '\')" style="background: #dc3545; color: white; border: none; padding: 3px 8px; border-radius: 3px; cursor: pointer; font-size: 0.8em; margin-left: 5px;" title="Eliminar red">X</button>';
+                html += '</div>';
+            });
+            container.innerHTML = html;
 
         } catch (err) {
             container.innerHTML = '<em style="color: #dc3545; font-size: 0.85em;">Error cargando redes</em>';

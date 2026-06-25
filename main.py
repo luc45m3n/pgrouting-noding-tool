@@ -1,10 +1,11 @@
-import json
-from fastapi import FastAPI, UploadFile, File, HTTPException, status, Form
+# main.py
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import List, Optional
+import json
 
 from geo_processor import GeoJSONProcessor, UnknownCRSError, GeoProcessingError, InvalidGeometryError
 from network_processor import NetworkProcessor, NetworkProcessingError
@@ -16,8 +17,19 @@ from database import (
     get_network_stats,
     check_health
 )
+
+# ============================================================
+# 🆕 INICIALIZACIÓN AUTOMÁTICA DE POSTGRESQL Y BD
+# ============================================================
 from db_init import init_database
 
+# Ejecutar al arrancar la app
+if not init_database():
+    print("⚠️ La base de datos no se inicializó correctamente. La app puede fallar.")
+
+# ============================================================
+# CONFIGURACIÓN DE LA APLICACIÓN
+# ============================================================
 app = FastAPI(title="WebGIS Routing API", version="2.0")
 
 app.add_middleware(
@@ -25,7 +37,7 @@ app.add_middleware(
     allow_origins=["*"],
     allow_credentials=False,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*"]
 )
 
 geo_processor = GeoJSONProcessor()
