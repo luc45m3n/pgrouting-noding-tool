@@ -1,0 +1,2 @@
+chmod +x setup-postgis.sh
+./setup-postgis.sh

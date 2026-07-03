@@ -1,0 +1,13 @@
+                  List of relations
+ Schema |           Name           | Type  |  Owner   
+--------+--------------------------+-------+----------
+ public | net_5fa0533c_edges       | table | postgres
+ public | net_5fa0533c_edges_noded | table | postgres
+ public | net_6b1cfdaa_edges       | table | postgres
+ public | net_6b1cfdaa_edges_noded | table | postgres
+ public | net_b32b9497_edges       | table | postgres
+ public | net_b32b9497_edges_noded | table | postgres
+ public | net_bdc4df9e_edges       | table | postgres
+ public | net_bdc4df9e_edges_noded | table | postgres
+(8 rows)
+

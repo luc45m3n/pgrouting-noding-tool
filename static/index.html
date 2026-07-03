@@ -18,11 +18,17 @@
         <!-- Contenedor de Toasts (Notificaciones) -->
         <div id="toastContainer" class="toast-container"></div>
     </div>
-    <!-- 1. Primero cargamos Leaflet -->
+    <!-- 1. Sistema de internacionalización -->
+    <script src="/static/i18n.js"></script>
+    <!-- 2. Primero cargamos Leaflet -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- 2. Luego nuestro módulo personalizado del desplegable -->
+    <!-- 3. Luego nuestro módulo personalizado del desplegable -->
     <script src="/static/menu_principal.js"></script>
-    <!-- 3. Finalmente, la lógica principal de la app -->
+    <!-- 4. Panel de ruteo flotante -->
+    <link rel="stylesheet" href="/static/routing_panel.css">
+    <script src="/static/routing_panel.js"></script>
+    <!-- 5. Finalmente, la lógica principal de la app -->
     <script src="/static/app.js"></script>
+
 </body>
 </html>
