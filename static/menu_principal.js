@@ -3,28 +3,55 @@
 L.Control.MainMenu = L.Control.extend({
     options: { position: 'topright' },
 
-    onAdd: function (map) {
-        this._map = map;
-        this._baseMaps = [];
-        this._overlays = [];
-        this._activeBaseMapName = null;
-        this._formTimeout = null;
-        this._showNetworkPanel = false;
+    
+onAdd: function (map) {
+    this._map = map;
+    this._baseMaps = [];
+    this._overlays = [];
+    this._activeBaseMapName = null;
+    this._formTimeout = null;
+    this._showNetworkPanel = false;
 
-        const container = L.DomUtil.create('div', 'leaflet-main-menu leaflet-bar');
-        
-        const header = L.DomUtil.create('div', 'main-menu-header', container);
-        header.innerHTML = '&#9776;';
-        header.title = 'Menú principal';
-        header.onclick = () => container.classList.toggle('expanded');
+    const container = L.DomUtil.create('div', 'leaflet-main-menu leaflet-bar');
+    
+    const header = L.DomUtil.create('div', 'main-menu-header', container);
+    header.innerHTML = '&#9776;';
+    header.title = i18n.t('menu.title');
+    header.onclick = () => container.classList.toggle('expanded');
 
-        this._contentContainer = L.DomUtil.create('div', 'main-menu-content', container);
+    // ✅ CORREGIDO: Selector de idioma usando referencia directa
+    const langSelector = L.DomUtil.create('div', 'lang-selector', container);
+    langSelector.style.cssText = 'padding: 0 8px;';
+    
+    const select = L.DomUtil.create('select', '', langSelector);
+    select.style.cssText = 'width: 100%; padding: 4px; margin: 4px 0; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;';
+    
+    const optEs = L.DomUtil.create('option', '', select);
+    optEs.value = 'es';
+    optEs.textContent = 'Español';
+    if (i18n.currentLang === 'es') optEs.selected = true;
+    
+    const optEn = L.DomUtil.create('option', '', select);
+    optEn.value = 'en';
+    optEn.textContent = 'English';
+    if (i18n.currentLang === 'en') optEn.selected = true;
+    
+    // ✅ Usar referencia directa 'select' en lugar de document.getElementById
+    select.addEventListener('change', (e) => {
+        i18n.setLanguage(e.target.value);
+    });
 
-        L.DomEvent.disableClickPropagation(container);
-        L.DomEvent.disableScrollPropagation(container);
+    this._contentContainer = L.DomUtil.create('div', 'main-menu-content', container);
 
-        return container;
-    },
+    L.DomEvent.disableClickPropagation(container);
+    L.DomEvent.disableScrollPropagation(container);
+
+    window.addEventListener('languageChanged', () => {
+        this._updateContent();
+    });
+
+    return container;
+},
 
     addBaseMap: function (layer, name) {
         this._baseMaps.push({ layer, name });
@@ -78,7 +105,7 @@ L.Control.MainMenu = L.Control.extend({
         if (this._baseMaps.length > 0) {
             const section1 = L.DomUtil.create('div', 'menu-section', this._contentContainer);
             const title1 = L.DomUtil.create('div', 'menu-section-title', section1);
-            title1.textContent = 'Mapa Base';
+            title1.textContent = i18n.t('menu.basemap');
 
             this._baseMaps.forEach((item) => {
                 const row = L.DomUtil.create('div', 'menu-row', section1);
@@ -103,68 +130,84 @@ L.Control.MainMenu = L.Control.extend({
         // SECCIÓN 2: Carga GeoJSON (TODO EL HTML EN UN SOLO TEMPLATE LITERAL)
         const section2 = L.DomUtil.create('div', 'menu-section', this._contentContainer);
         const title2 = L.DomUtil.create('div', 'menu-section-title', section2);
-        title2.textContent = 'Cargar GeoJSON';
+        title2.textContent = i18n.t('menu.load');
 
         section2.innerHTML = `
             <form id="uploadForm" style="padding: 8px;">
                 <div class="menu-form-group">
-                    <label for="fileInput">Archivo:</label>
+                    <label for="fileInput">${i18n.t('menu.file')}</label>
                     <div class="custom-file-wrapper">
                         <input type="file" id="fileInput" name="file" accept=".geojson,.json" required hidden>
-                        <label for="fileInput" class="btn-select-file">Seleccionar</label>
-                        <span id="fileNameDisplay" class="file-name">Ninguno</span>
+                        <label for="fileInput" class="btn-select-file">${i18n.t('menu.select')}</label>
+                        <span id="fileNameDisplay" class="file-name">${i18n.t('menu.none')}</span>
                     </div>
                 </div>
                 <div class="menu-form-group hidden" id="epsgGroup">
-                    <label for="epsgInput">EPSG Origen:</label>
+                    <label for="epsgInput">${i18n.t('menu.epsg')}</label>
                     <input type="number" id="epsgInput" placeholder="Ej: 4326">
                 </div>
                 <div class="menu-actions">
-                    <button type="submit" id="submitBtn" class="btn btn-primary">Cargar</button>
-                    <button type="button" id="cancelBtn" class="btn btn-secondary">Limpiar</button>
+                    <button type="submit" id="submitBtn" class="btn btn-primary">${i18n.t('menu.upload')}</button>
+                    <button type="button" id="cancelBtn" class="btn btn-secondary">${i18n.t('menu.clear')}</button>
                 </div>
             </form>
 
             <div id="networkProcessingPanel" style="display: none; margin-top: 10px; padding: 8px; background: #f0f9ff; border-radius: 4px; border-left: 3px solid #3b82f6;">
                 <div style="font-size: 0.9em; margin-bottom: 8px;">
-                    <strong> Este archivo tiene líneas</strong><br>
-                    <small style="color: #666;">¿Querés procesarlo como red ruteable?</small>
-                </div>
-
-                <div class="menu-form-group">
-                    <label style="display: flex; align-items: center; gap: 6px; font-size: 0.9em;">
-                        <input type="checkbox" id="processAsNetworkCheckbox" checked>
-                        <span>Sí, procesar como red</span>
-                    </label>
+                    <strong>${i18n.t('network.hasLines')}</strong><br>
+                    <small style="color: #666;">${i18n.t('network.processQuestion')}</small>
                 </div>
 
                 <div id="utmOptions" style="display: block;">
                     <div class="menu-form-group">
-                        <label for="utmEpsgInput">Proyección UTM destino:</label>
+                        <label for="utmEpsgInput">${i18n.t('network.utmProjection')}</label>
                         <select id="utmEpsgInput" style="width: 100%; padding: 4px;">
-                            <option value="">Sin proyección (WGS84 / EPSG:4326)</option>
-                            <option value="32719" selected>32719 - UTM 19S (Bariloche/Patagonia)</option>
-                            <option value="32718">32718 - UTM 18S (Buenos Aires/Centro)</option>
-                            <option value="32717">32717 - UTM 17S (Norte)</option>
-                            <option value="32720">32720 - UTM 20S (Chubut/Santa Cruz)</option>
-                            <option value="32721">32721 - UTM 21S (Tierra del Fuego)</option>
+                            <option value="">${i18n.t('network.noProjection')}</option>
+                            <option value="32719" selected>${i18n.t('network.utm19s')}</option>
+                            <option value="32718">${i18n.t('network.utm18s')}</option>
+                            <option value="32717">${i18n.t('network.utm17s')}</option>
+                            <option value="32720">${i18n.t('network.utm20s')}</option>
+                            <option value="32721">${i18n.t('network.utm21s')}</option>
                         </select>
-                        <small style="color: #666; font-size: 0.75em;">Dejá en blanco para usar WGS84</small>
                     </div>
+
+                    <div class="menu-form-group">
+                        <label for="toleranceInput">${i18n.t('network.nodeTolerance')}</label>
+                        <input type="number" id="toleranceInput" value="0.5" step="0.1" min="0.1" max="10" style="width: 100%; padding: 4px;">
+                        <small style="color: #666; font-size: 0.75em;">${i18n.t('network.nodeToleranceHelp')}</small>
+                    </div>
+
+                    <!-- ✅ NUEVO: Opciones avanzadas -->
+                    <details style="margin-top: 8px; font-size: 0.85em;">
+                        <summary style="cursor: pointer; color: #3b82f6; font-weight: 600;">${i18n.t('network.advancedOptions')}</summary>
+
+                        <div class="menu-form-group" style="margin-top: 8px;">
+                            <label for="snapToleranceInput">${i18n.t('network.snapTolerance')}</label>
+                            <input type="number" id="snapToleranceInput" value="0" step="0.1" min="0" max="5" style="width: 100%; padding: 4px;">
+                            <small style="color: #666; font-size: 0.75em;">${i18n.t('network.snapHelp')} </small>
+                        </div>
+
+                        <div class="menu-form-group">
+                            <label for="simplifyToleranceInput">${i18n.t('network.simplifyTolerance')}</label>
+                            <input type="number" id="simplifyToleranceInput" value="0" step="0.1" min="0" max="5" style="width: 100%; padding: 4px;">
+                            <small style="color: #666; font-size: 0.75em;">${i18n.t('network.simplifyHelp')}</small>
+                        </div>
+                        
+                    </details>
                 </div>
 
                 <button type="button" id="processNetworkBtn" class="btn btn-primary" style="width: 100%; margin-top: 8px;">
-                    ⚙️ Procesar como red
+                    ${i18n.t('network.processNetwork')}
                 </button>
             </div>
 
             <div id="networksListContainer" style="margin-top: 10px; max-height: 200px; overflow-y: auto; border-top: 1px solid #eee; padding-top: 8px;">
-                <em style="color: #888; font-size: 0.85em;">No hay redes cargadas</em>
+                <em style="color: #888; font-size: 0.85em;">${i18n.t('menu.noNetworks')}</em>
             </div>
 
             <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee;">
                 <button type="button" id="toggleRoutingPanel" class="btn btn-primary" style="width: 100%;">
-                    Abrir panel de ruteo
+                    ${i18n.t('menu.routing')}
                 </button>
             </div>
         `;
@@ -179,7 +222,7 @@ L.Control.MainMenu = L.Control.extend({
         if (this._overlays.length > 0) {
             const section3 = L.DomUtil.create('div', 'menu-section', this._contentContainer);
             const title3 = L.DomUtil.create('div', 'menu-section-title', section3);
-            title3.textContent = 'Capas Cargadas';
+            title3.textContent =  $i18n.t('menu.layers');
 
             this._overlays.forEach((item) => {
                 const row = L.DomUtil.create('div', 'menu-row', section3);
@@ -359,7 +402,7 @@ L.Control.MainMenu = L.Control.extend({
                     if(window.showToast) window.showToast("No hay GeoJSON cargado", "error");
                     return;
                 }
-            
+
                 const shouldProcess = processAsNetworkCheckbox ? processAsNetworkCheckbox.checked : true;
                 
                 if (!shouldProcess) {
@@ -372,20 +415,27 @@ L.Control.MainMenu = L.Control.extend({
                     return;
                 }
                 
+                // ✅ NUEVO: Obtener todos los parámetros de configuración
                 const utmEpsgValue = document.getElementById('utmEpsgInput').value;
                 const utmEpsg = utmEpsgValue ? parseInt(utmEpsgValue) : 4326;
+                const tolerance = parseFloat(document.getElementById('toleranceInput').value) || 0.5;
+                const snapTolerance = parseFloat(document.getElementById('snapToleranceInput').value) || 0;
+                const simplifyTolerance = parseFloat(document.getElementById('simplifyToleranceInput').value) || 0;
 
                 processNetworkBtn.disabled = true;
                 processNetworkBtn.textContent = 'Procesando...';
             
                 try {
+                    // ✅ NUEVO: Enviar todos los parámetros al backend
                     const response = await fetch('/api/networks/process', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             geojson: window.lastLoadedGeoJSON,
                             target_epsg: utmEpsg,
-                            tolerance: 0.5
+                            tolerance: tolerance,
+                            snap_tolerance: snapTolerance,
+                            simplify_tolerance: simplifyTolerance
                         })
                     });
                 
@@ -420,7 +470,7 @@ L.Control.MainMenu = L.Control.extend({
                             window.mainMenu.removeLayer(window.lastLoadedLayer.layerId);
                         }
                         window.lastLoadedLayer = null;
-                        console.log('Capa original eliminada automáticamente');
+                        console.log(i18n.t("log.original_layer_removed"));
                     }
                 
                     if(window.setActiveNetwork) {
@@ -436,34 +486,26 @@ L.Control.MainMenu = L.Control.extend({
                     if(window.showToast) {
                         const edges = data.edges || '?';
                         const vertices = data.vertices || '?';
-                        window.showToast("Red creada: " + edges + " aristas, " + vertices + " vértices", 'success', 5000);
+                        window.showToast(i18n.t("log.network_created", edges=edges, vertices=vertices), i18n.t("log.success"), 5000);
                     }
                 
                 } catch (err) {
                     console.error('Error en processNetworkBtn:', err);
-                    if(window.showToast) window.showToast("Error: " + err.message, "error", 5000);
+                    if(window.showToast) window.showToast(i18n.t("log.processing_network_error", error=err.message), i18n.t("log.error"), 5000);
                 } finally {
                     processNetworkBtn.disabled = false;
-                    processNetworkBtn.textContent = 'Procesar como red';
+                    processNetworkBtn.textContent = i18n.t("log.process_as_network");
                 }
-            };
-        }
-
-        // Toggle del panel de ruteo
-        const toggleRoutingBtn = document.getElementById('toggleRoutingPanel');
-        if (toggleRoutingBtn && window.routingPanel) {
-            toggleRoutingBtn.onclick = () => {
-                if (window.routingPanel.panel.style.display === 'none') {
-                    window.routingPanel.show();
-                    toggleRoutingBtn.textContent = 'Ocultar panel de ruteo';
-                } else {
-                    window.routingPanel.hide();
-                    toggleRoutingBtn.textContent = 'Abrir panel de ruteo';
+                // ✅ Toggle del panel de ruteo (AGREGAR ACÁ)
+                const toggleRoutingBtn = document.getElementById('toggleRoutingPanel');
+                if (toggleRoutingBtn && window.routingPanel) {
+                    toggleRoutingBtn.onclick = () => {
+                        window.routingPanel.toggle();
+                    };
                 }
             };
         }
     },
-
     _loadNetworksList: async function () {
         const container = document.getElementById('networksListContainer');
         if (!container) return;
@@ -473,13 +515,13 @@ L.Control.MainMenu = L.Control.extend({
             const data = await response.json();
 
             if (!data.networks || data.networks.length === 0) {
-                container.innerHTML = '<em style="color: #888; font-size: 0.85em;">No hay redes cargadas</em>';
+                container.innerHTML = '<em style="color: #888; font-size: 0.85em;">' + i18n.t("log.no_networks_loaded") + '</em>';
                 return;
             }
 
             const activeNetwork = window.activeNetwork || null;
 
-            let html = '<strong style="font-size: 0.85em; color: #333;">Redes disponibles:</strong>';
+            let html = '<strong style="font-size: 0.85em; color: #333;">' + i18n.t('menu.networks') + '</strong>';
             data.networks.forEach(net => {
                 const isActive = net.table_name === activeNetwork;
                 html += '<div class="network-item ' + (isActive ? 'active' : '') + '" style="padding: 6px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; font-size: 0.85em;">';
@@ -495,8 +537,8 @@ L.Control.MainMenu = L.Control.extend({
             container.innerHTML = html;
 
         } catch (err) {
-            container.innerHTML = '<em style="color: #dc3545; font-size: 0.85em;">Error cargando redes</em>';
-            console.error('Error cargando redes:', err);
+            container.innerHTML = '<em style="color: #dc3545; font-size: 0.85em;">' + i18n.t("log.loading_networks_error") + '</em>';
+            console.error(i18n.t("log.loading_networks_error"), err);
         }
     }
 });

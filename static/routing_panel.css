@@ -297,6 +297,22 @@
     animation: spin 1s linear infinite;
 }
 
+/* Estilo del tooltip de ruta */
+.route-tooltip {
+    background: rgba(0, 0, 0, 0.85) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 6px !important;
+    padding: 6px 12px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important;
+}
+
+.route-tooltip::before {
+    border-top-color: rgba(0, 0, 0, 0.85) !important;
+}
+
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }

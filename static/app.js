@@ -23,22 +23,22 @@ function initMap() {
 
     window.mainMenu = new L.Control.MainMenu({ position: 'topright' }).addTo(mapInstance);
     
-    window.mainMenu.addBaseMap(osmLayer, "Callejero (OSM)");
-    window.mainMenu.addBaseMap(satelliteLayer, "Satélite (Esri)");
+    window.mainMenu.addBaseMap(osmLayer, i18n.t('menu.basemap.osm'));
+    window.mainMenu.addBaseMap(satelliteLayer, i18n.t('menu.basemap.satellite'));
     
     // ✅ Crear panel de ruteo DESPUÉS de que mapInstance existe
     if (typeof RoutingPanel !== 'undefined') {
         routingPanel = new RoutingPanel(mapInstance);
         window.routingPanel = routingPanel;
-        console.log('✅ Panel de ruteo creado');
+        console.log(i18n.t('menu.routing_created'));
     } else {
-        console.error('❌ RoutingPanel no está definido. Verificá que routing_panel.js se cargue antes que app.js');
+        console.error(i18n.t('menu.routing_not_defined'));
     }
 }
 
 function addLayerToMap(geojsonData, originalFileName) {
     layerCounter++;
-    const layerName = originalFileName ? originalFileName.replace(/\.(geo)?json$/, '') : 'Capa ' + layerCounter;
+    const layerName = originalFileName ? originalFileName.replace(/\.(geo)?json$/, '') : i18n.t('menu.layer') + ' ' + layerCounter;
 
     const newLayer = L.geoJSON(geojsonData, {
         style: { color: "#2563eb", weight: 2, fillColor: "#3b82f6", fillOpacity: 0.4 },
@@ -83,7 +83,7 @@ window.removeLayer = function(layerId) {
     if (layer) {
         mapInstance.removeLayer(layer);
         if (window.mainMenu) window.mainMenu.removeLayer(layerId);
-        if(window.showToast) window.showToast("Capa eliminada", "success", 2000);
+        if(window.showToast) window.showToast(i18n.t('menu.layer_removed'), i18n.t('menu.success'), 2000);
     }
 };
 
@@ -91,7 +91,7 @@ window.moveLayerToFront = function(layerId) {
     const layer = mapInstance._layers[layerId];
     if (layer) {
         layer.bringToFront();
-        if(window.showToast) window.showToast("Capa movida al frente", "success", 2000);
+        if(window.showToast) window.showToast(i18n.t('menu.layer_moved_to_front'), i18n.t('menu.success'), 2000);
     }
 };
 
@@ -99,14 +99,14 @@ window.moveLayerToBack = function(layerId) {
     const layer = mapInstance._layers[layerId];
     if (layer) {
         layer.bringToBack();
-        if(window.showToast) window.showToast("Capa movida al fondo", "success", 2000);
+        if(window.showToast) window.showToast(i18n.t('menu.layer_moved_to_back'), i18n.t('menu.success'), 2000);
     }
 };
 
 window.setActiveNetwork = async function(tableName) {
     try {
         const response = await fetch('/api/networks/' + tableName + '/geojson');
-        if (!response.ok) throw new Error('Error cargando red');
+        if (!response.ok) throw new Error(i18n.t('menu.network_load_error'));
         
         const geojson = await response.json();
         
@@ -132,7 +132,7 @@ window.setActiveNetwork = async function(tableName) {
         window.activeNetwork = tableName;
         
         if(window.showToast) {
-            window.showToast('Red activa: ' + tableName, 'success', 3000);
+            window.showToast(i18n.t('menu.network_activated') + ': ' + tableName, i18n.t('menu.success'), 3000);
         }
         
         if (window.mainMenu) {
@@ -144,10 +144,15 @@ window.setActiveNetwork = async function(tableName) {
             window.routingPanel.updateNetworkStatus();
         }
         
+        // ✅ MOSTRAR PANEL DE RUTEO Y ACTUALIZAR ESTADO
+        if (window.routingPanel) {
+            window.routingPanel.show();  // ← ESTO HACE VISIBLE EL PANEL
+        }
+        
         console.log('Red activa:', tableName);
         
     } catch (err) {
-        if(window.showToast) window.showToast('Error: ' + err.message, 'error', 4000);
+        if(window.showToast) window.showToast(i18n.t('menu.error') + ': ' + err.message, i18n.t('menu.error'), 4000);
     }
 };
 
@@ -156,7 +161,7 @@ window.deleteNetwork = async function(tableName) {
     
     try {
         const response = await fetch('/api/networks/' + tableName, { method: 'DELETE' });
-        if (!response.ok) throw new Error('Error eliminando red');
+        if (!response.ok) throw new Error(i18n.t('menu.network_delete_error'));
         
         if (window.activeNetwork === tableName) {
             window.activeNetwork = null;
@@ -172,7 +177,7 @@ window.deleteNetwork = async function(tableName) {
         }
         
         if(window.showToast) {
-            window.showToast('Red eliminada: ' + tableName, 'success', 3000);
+            window.showToast(i18n.t('menu.network_deleted') + ': ' + tableName, i18n.t('menu.success'), 3000);
         }
         
         if (window.mainMenu) {
@@ -180,13 +185,13 @@ window.deleteNetwork = async function(tableName) {
         }
         
     } catch (err) {
-        if(window.showToast) window.showToast('Error: ' + err.message, 'error', 4000);
+        if(window.showToast) window.showToast(i18n.t('menu.error') + ': ' + err.message, i18n.t('menu.error'), 4000);
     }
 };
 
 window.getNearestNode = async function(lng, lat) {
     if (!window.activeNetwork) {
-        throw new Error('No hay red activa. Carga una red primero.');
+        throw new Error(i18n.t('menu.no_active_network'));
     }
     
     const response = await fetch(
@@ -194,7 +199,7 @@ window.getNearestNode = async function(lng, lat) {
     );
     
     if (!response.ok) {
-        throw new Error('No se encontró nodo cercano');
+        throw new Error(i18n.t('menu.no_nearest_node'));
     }
     
     return await response.json();
@@ -202,7 +207,7 @@ window.getNearestNode = async function(lng, lat) {
 
 window.calculateShortestPath = async function(startNode, endNode) {
     if (!window.activeNetwork) {
-        throw new Error('No hay red activa. Carga una red primero.');
+        throw new Error(i18n.t('menu.no_active_network'));
     }
     
     const response = await fetch(
@@ -216,7 +221,7 @@ window.calculateShortestPath = async function(startNode, endNode) {
     
     if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.detail || 'Error calculando ruta');
+        throw new Error(error.detail || i18n.t('menu.route_calculation_error'));
     }
     
     return await response.json();
@@ -224,7 +229,7 @@ window.calculateShortestPath = async function(startNode, endNode) {
 
 window.calculateTSP = async function(waypoints, startNode) {
     if (!window.activeNetwork) {
-        throw new Error('No hay red activa. Carga una red primero.');
+        throw new Error(i18n.t('menu.no_active_network'));
     }
     
     const response = await fetch(
@@ -241,7 +246,7 @@ window.calculateTSP = async function(waypoints, startNode) {
     
     if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.detail || 'Error calculando ruta TSP');
+        throw new Error(error.detail || i18n.t('menu.tsp_calculation_error'));
     }
     
     return await response.json();

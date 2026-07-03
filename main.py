@@ -17,7 +17,7 @@ from database import (
     get_network_stats,
     check_health
 )
-
+from i18n import i18n
 # ============================================================
 # 🆕 INICIALIZACIÓN AUTOMÁTICA DE POSTGRESQL Y BD
 # ============================================================
@@ -25,7 +25,7 @@ from db_init import init_database
 
 # Ejecutar al arrancar la app
 if not init_database():
-    print("⚠️ La base de datos no se inicializó correctamente. La app puede fallar.")
+    print(i18n.t("log.database_init_error"))
 
 # ============================================================
 # CONFIGURACIÓN DE LA APLICACIÓN
@@ -76,11 +76,11 @@ async def process_geojson_endpoint(
         geometry_types = set(result.geometry_types)
         has_lines = bool(geometry_types & {'LineString', 'MultiLineString'})
         
-        print(f"🔍 Tipos de geometría detectados: {geometry_types}")
-        print(f"🔍 ¿Tiene líneas?: {has_lines}")
+        print(i18n.t("log.geometry_types_detected", geometry_types=geometry_types))
+        print(i18n.t("log.has_lines", has_lines=has_lines))
         
         return {
-            "status": "success",
+            "status": i18n.t("log.success"),
             "data": {
                 "original_crs": result.original_crs,
                 "target_crs": result.target_crs,
@@ -88,7 +88,7 @@ async def process_geojson_endpoint(
                 "feature_count": len(result.gdf),
                 "bounds": [round(b, 4) for b in result.gdf.total_bounds.tolist()],
                 "geojson_data": geojson_dict,
-                "has_lines": has_lines  # ← ESTE CAMPO ES CLAVE
+                "has_lines": has_lines  
             },
             "warnings": result.warnings
         }
@@ -97,7 +97,7 @@ async def process_geojson_endpoint(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
-                "error": "CRS Desconocido",
+                "error": i18n.t("log.unknown_crs"),
                 "message": str(e),
                 "suggested_actions": ["provide_epsg", "change_file", "cancel"]
             }
@@ -109,7 +109,7 @@ async def process_geojson_endpoint(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error interno: {str(e)}"
+            detail=i18n.t("log.internal_error", error=str(e))
         )
 # ============================================================
 # ENDPOINT: CARGAR RED GEOJSON
@@ -123,24 +123,37 @@ async def load_network(file: UploadFile = File(...)):
         result = network_processor.process_network(geojson_data)
         return result
     except json.JSONDecodeError:
-        raise HTTPException(400, "El archivo no es un JSON válido")
+        raise HTTPException(400, i18n.t("log.invalid_json"))
     except NetworkProcessingError as e:
         raise HTTPException(400, str(e))
     except Exception as e:
-        raise HTTPException(500, f"Error interno: {str(e)}")
+        raise HTTPException(500, i18n.t("log.internal_error", error=str(e)))
 
 
 @app.get("/api/networks")
-def list_networks():
-    return {"networks": network_processor.list_networks()}
+async def list_networks():
+    try:
+        networks = network_processor.list_networks()
+        
+        # Asegurar que networks sea una lista
+        if not isinstance(networks, list):
+            networks = []
+        
+        return {"networks": networks}
+        
+    except Exception as e:
+        import traceback
+        print(f"Error listing networks:")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 
 @app.delete("/api/networks/{table_name}")
 def delete_network(table_name: str):
     if not network_processor.network_exists(table_name):
-        raise HTTPException(404, "Red no encontrada")
+        raise HTTPException(404, i18n.t("log.network_not_found"))
     network_processor.delete_network(table_name)
-    return {"status": "success", "message": f"Red '{table_name}' eliminada"}
+    return {"status": i18n.t("log.success"), "message": i18n.t("log.network_deleted", network_id=table_name)}
 
 
 # ============================================================
@@ -149,44 +162,44 @@ def delete_network(table_name: str):
 @app.get("/api/networks/{table_name}/geojson")
 def network_geojson(table_name: str):
     if not network_processor.network_exists(table_name):
-        raise HTTPException(404, "Red no encontrada")
+        raise HTTPException(404, i18n.t("log.network_not_found"))
     return get_network_geojson(table_name)
 
 
 @app.get("/api/networks/{table_name}/nearest-node")
 def nearest_node(table_name: str, lon: float, lat: float):
     if not network_processor.network_exists(table_name):
-        raise HTTPException(404, "Red no encontrada")
+        raise HTTPException(404, i18n.t("log.network_not_found"))
     try:
         return get_nearest_node(table_name, lon, lat)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise HTTPException(400, i18n.t("log.invalid_coordinates"))
 
 
 @app.post("/api/networks/{table_name}/shortest-path")
 def shortest_path(table_name: str, req: ShortestPathRequest):
     if not network_processor.network_exists(table_name):
-        raise HTTPException(404, "Red no encontrada")
+        raise HTTPException(404, i18n.t("log.network_not_found"))
     try:
         return calculate_shortest_path(table_name, req.start_node, req.end_node)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise HTTPException(400, i18n.t("log.shortest_path_error", error=str(e)))
 
 
 @app.post("/api/networks/{table_name}/tsp")
 def tsp_route(table_name: str, req: TSPRequest):
     if not network_processor.network_exists(table_name):
-        raise HTTPException(404, "Red no encontrada")
+        raise HTTPException(404, i18n.t("log.network_not_found"))
     try:
         return calculate_tsp_route(table_name, req.waypoints, req.start_node)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise HTTPException(400, i18n.t("log.tsp_error", error=str(e)))
 
 
 @app.get("/api/networks/{table_name}/stats")
 def network_stats(table_name: str):
     if not network_processor.network_exists(table_name):
-        raise HTTPException(404, "Red no encontrada")
+        raise HTTPException(404, i18n.t("log.network_not_found"))
     return get_network_stats(table_name)
 
 
@@ -194,6 +207,9 @@ class ProcessNetworkRequest(BaseModel):
     geojson: dict
     target_epsg: int = 32719
     tolerance: float = 0.5
+    snap_tolerance: float = 0.0          # NUEVO
+    simplify_tolerance: float = 0.0      # NUEVO
+
 
 @app.post("/api/networks/process")
 async def process_network_from_geojson(request: ProcessNetworkRequest):
@@ -208,7 +224,9 @@ async def process_network_from_geojson(request: ProcessNetworkRequest):
         result = network_processor.process_network(
             geojson_data=request.geojson,
             target_epsg=request.target_epsg,
-            tolerance=request.tolerance
+            tolerance=request.tolerance,
+            snap_tolerance=request.snap_tolerance,
+            simplify_tolerance=request.simplify_tolerance
         )
         
         print(f"✅ Red procesada: {result}")
@@ -217,10 +235,10 @@ async def process_network_from_geojson(request: ProcessNetworkRequest):
         return result
         
     except Exception as e:
-        print(f" Error procesando red: {e}")
+        print(i18n.t("log.processing_network_error", error=str(e)))
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error procesando red: {str(e)}")
+        raise HTTPException(status_code=500, detail=i18n.t("log.internal_error", error=str(e)))
 
 # ============================================================
 # ENDPOINT: HEALTH

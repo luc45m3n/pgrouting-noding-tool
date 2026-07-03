@@ -10,7 +10,7 @@ from shapely.geometry import shape, LineString, MultiLineString
 from shapely.ops import linemerge
 from dotenv import load_dotenv
 import os
-
+from i18n import i18n
 load_dotenv()
 
 DB_CONFIG = {
@@ -124,7 +124,10 @@ class NetworkProcessor:
         self,
         geojson_data: Dict,
         target_epsg: int = 32719,
-        tolerance: float = 0.5
+        tolerance: float = 0.5,
+        snap_tolerance: float = 0.0, 
+        simplify_tolerance: float = 0.0,
+         
     ) -> Dict[str, Any]:
         # 1. Validar
         is_valid, message, line_count = self.validate_geojson(geojson_data)
@@ -134,13 +137,26 @@ class NetworkProcessor:
         # 2. Parsear y reproyectar
         gdf = self._parse_geojson_to_gdf(geojson_data, target_epsg)
         
-        # 3. Generar nombre único
+        # 3. Pre-procesamiento: simplificar si se solicita
+        if simplify_tolerance > 0:
+            print(i18n.t('log.simplifying', tolerance=simplify_tolerance))
+            gdf.geometry = gdf.geometry.simplify(tolerance=simplify_tolerance)
+        
+        # 4. Pre-procesamiento: snap si se solicita
+        if snap_tolerance > 0:
+            print(i18n.t('log.snapping', tolerance=snap_tolerance))
+            gdf.geometry = gdf.geometry.apply(
+                lambda geom: self._snap_geometry(geom, snap_tolerance)
+            )
+        
+        # 5. Generar nombre único
         table_name = self._generate_table_name()
         edges_table = f"{table_name}_edges"
         noded_table = f"{edges_table}_noded"
         vertices_table = f"{noded_table}_vertices_pgr"
         
-        # 4. Cargar a PostGIS
+        # 6. Cargar a PostGIS
+        print(i18n.t('log.creating_table', table=edges_table))
         with self._get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(f"DROP TABLE IF EXISTS {edges_table};")
@@ -170,7 +186,6 @@ class NetworkProcessor:
                     highway = str(row.get('highway', ''))[:50] if row.get('highway') else None
                     name = str(row.get('name', ''))[:255] if row.get('name') else None
                     
-                    # ✅ CORREGIDO: cast explícito de bytea a geometry
                     cur.execute(f"""
                         INSERT INTO {edges_table} 
                         (cost, reverse_cost, highway, name, oneway, the_geom)
@@ -182,58 +197,78 @@ class NetworkProcessor:
                     CREATE INDEX idx_{table_name}_geom 
                     ON {edges_table} USING GIST (the_geom);
                 """)
+                
+                print(i18n.t('log.table_created', table=edges_table, count=inserted))
         
-        # 5. Ejecutar pgr_nodeNetwork (crea tabla _noded)
-        print(f"🔧 Ejecutando pgr_nodeNetwork en {edges_table}...")
+        # Verificar que la tabla existe antes de continuar
         with self._get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("""
-                    SELECT pgr_nodeNetwork(%s, %s, 'gid', 'the_geom');
-                """, (edges_table, tolerance))
-                print(f"✅ pgr_nodeNetwork ejecutado")
+                    SELECT EXISTS (
+                        SELECT FROM information_schema.tables 
+                        WHERE table_name = %s
+                    );
+                """, (edges_table,))
+                exists = cur.fetchone()[0]
+                
+                if not exists:
+                    raise NetworkProcessingError(f"La tabla {edges_table} no se creó correctamente")
+                
+                cur.execute(f"SELECT COUNT(*) FROM {edges_table};")
+                count = cur.fetchone()[0]
+                print(i18n.t('log.table_verified', table=edges_table, count=count))
         
-        # 5.5. 🔧 ADAPTAR estructura de la tabla _noded para pgRouting
-        print(f"🔧 Adaptando estructura de {noded_table}...")
-        with self._get_connection() as conn:
-            with conn.cursor() as cur:
-                # Renombrar 'id' a 'gid' (pgRouting espera 'gid')
-                cur.execute(f"""
-                    ALTER TABLE {noded_table} 
-                    RENAME COLUMN id TO gid;
-                """)
-                
-                # Agregar columna cost (longitud en metros)
-                cur.execute(f"""
-                    ALTER TABLE {noded_table} 
-                    ADD COLUMN IF NOT EXISTS cost DOUBLE PRECISION;
-                """)
-                
-                # Agregar columna reverse_cost
-                cur.execute(f"""
-                    ALTER TABLE {noded_table} 
-                    ADD COLUMN IF NOT EXISTS reverse_cost DOUBLE PRECISION;
-                """)
-                
-                # Calcular costos (longitud en metros porque está en UTM)
-                cur.execute(f"""
-                    UPDATE {noded_table}
-                    SET cost = ST_Length(the_geom),
-                        reverse_cost = ST_Length(the_geom);
-                """)
-                
-                print(f"✅ Estructura adaptada: gid, cost, reverse_cost agregados")
         
-        # 6. Ejecutar pgr_createTopology sobre la tabla NODEADA
-        print(f"🔧 Ejecutando pgr_createTopology en {noded_table}...")
-        with self._get_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    SELECT pgr_createTopology(%s, %s, 'the_geom', 'gid');
-                """, (noded_table, tolerance))
-                print(f"✅ pgr_createTopology ejecutado")
+            # 7. Decidir método de nodeo
+            if snap_tolerance > 0:
+                # Flujo avanzado: ya crea la tabla con gid, cost, reverse_cost
+                print(i18n.t('log.advanced_noding', tolerance=snap_tolerance))
+                self._advanced_node_network(edges_table, noded_table, tolerance, snap_tolerance)
+
+                # Solo falta crear topología
+                print(i18n.t('log.creating_topology', table=noded_table))
+                with self._get_connection() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute("""
+                            SELECT pgr_createTopology(%s, %s, 'the_geom', 'gid');
+                        """, (noded_table, tolerance))
+                print(i18n.t('log.topology_created', table=noded_table))
+
+            else:
+                # Flujo simple: pgr_nodeNetwork
+                print(i18n.t('log.executing_pgr_nodeNetwork', tolerance=tolerance))
+                with self._get_connection() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute("""
+                            SELECT pgr_nodeNetwork(%s, %s, 'gid', 'the_geom');
+                        """, (edges_table, tolerance))
+                print(i18n.t('log.pgr_nodeNetwork_executed'))
+
+                # Adaptar estructura de la tabla _noded
+                print(i18n.t('log.adapting_structure', table=noded_table))
+                with self._get_connection() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute(f"ALTER TABLE {noded_table} RENAME COLUMN id TO gid;")
+                        cur.execute(f"ALTER TABLE {noded_table} ADD COLUMN IF NOT EXISTS cost DOUBLE PRECISION;")
+                        cur.execute(f"ALTER TABLE {noded_table} ADD COLUMN IF NOT EXISTS reverse_cost DOUBLE PRECISION;")
+                        cur.execute(f"""
+                            UPDATE {noded_table}
+                            SET cost = ST_Length(the_geom),
+                                reverse_cost = ST_Length(the_geom);
+                        """)
+                print(i18n.t('log.structure_adapted', table=noded_table))
+
+                # Crear topología
+                print(i18n.t('log.creating_topology', table=noded_table))
+                with self._get_connection() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute("""
+                            SELECT pgr_createTopology(%s, %s, 'the_geom', 'gid');
+                        """, (noded_table, tolerance))
+                print(i18n.t('log.topology_created', table=noded_table))
         
-        # 7. Obtener estadísticas
-        print(f"📊 Obteniendo estadísticas...")
+        # 8. Obtener estadísticas
+        print(i18n.t('log.fetching_statistics'))
         with self._get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(f"SELECT COUNT(*) FROM {noded_table};")
@@ -241,18 +276,130 @@ class NetworkProcessor:
                 
                 cur.execute(f"SELECT COUNT(*) FROM {vertices_table};")
                 vertices_count = cur.fetchone()[0]
+        
+            
+        # 9. Crear topología
+        with self._get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT pgr_createTopology(%s, %s, 'the_geom', 'gid');
+                """, (noded_table, tolerance))
+        
+        # 10. Obtener estadísticas
+        with self._get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(f"SELECT COUNT(*) FROM {noded_table};")
+                edges_count = cur.fetchone()[0]
+                
+                cur.execute(f"SELECT COUNT(*) FROM {vertices_table};")
+                vertices_count = cur.fetchone()[0]
+        
         return {
-            "status": "success",
-            "table_name": noded_table,
-            "edges_table": noded_table,
-            "vertices_table": vertices_table,
-            "edges": edges_count,
-            "vertices": vertices_count,
-            "target_epsg": target_epsg,
-            "tolerance": tolerance,
-            "message": f"Red creada: {edges_count} aristas, {vertices_count} vértices"
-        }    
+                "status": "success",
+                "table_name": noded_table,
+                "edges_table": noded_table,
+                "vertices_table": vertices_table,
+                "edges": edges_count,
+                "vertices": vertices_count,
+                "target_epsg": target_epsg,
+                "tolerance": tolerance,
+                "snap_tolerance": snap_tolerance,
+                "simplify_tolerance": simplify_tolerance,
+                "message": f"Red creada: {edges_count} aristas, {vertices_count} vértices"
+            }
     
+    def _snap_geometry(self, geom, tolerance):
+        """Aplica snapping a una geometría."""
+        from shapely.ops import snap
+        # Snap a una grícula virtual
+        coords = list(geom.coords)
+        snapped_coords = [
+            (round(x / tolerance) * tolerance, round(y / tolerance) * tolerance)
+            for x, y in coords
+        ]
+        return LineString(snapped_coords)
+    
+    def _advanced_node_network(self, edges_table, noded_table, tolerance, snap_tolerance):
+        """
+        Nodeo avanzado robusto:
+        ST_Snap → ST_Union (corta en intersecciones) → ST_Dump
+        """
+        print(i18n.t('log.advanced_noding', snap_tolerance=snap_tolerance, tolerance=tolerance))
+
+        with self._get_connection() as conn:
+            with conn.cursor() as cur:
+                # PASO 1: Snapear líneas
+                temp_snapped = f"{edges_table}_snapped"
+                cur.execute(f"DROP TABLE IF EXISTS {temp_snapped};")
+
+                if snap_tolerance > 0:
+                    cur.execute(f"""
+                        CREATE TABLE {temp_snapped} AS
+                        SELECT 
+                            e.gid,
+                            ST_Snap(
+                                e.the_geom, 
+                                c.collected_geom, 
+                                {snap_tolerance}
+                            ) AS the_geom
+                        FROM {edges_table} e,
+                             (SELECT ST_Collect(the_geom) AS collected_geom FROM {edges_table}) c;
+                    """)
+                    print(i18n.t('log.snap_applied', tolerance=snap_tolerance))
+                else:
+                    cur.execute(f"""
+                        CREATE TABLE {temp_snapped} AS
+                        SELECT gid, the_geom FROM {edges_table};
+                    """)
+
+                cur.execute(f"CREATE INDEX ON {temp_snapped} USING GIST (the_geom);")
+
+                # PASO 2: Unir todas las líneas y cortar en intersecciones con ST_Node + ST_Dump
+                # ST_Node crea nodos en todas las intersecciones
+                # ST_Dump extrae las líneas individuales resultantes
+                cur.execute(f"DROP TABLE IF EXISTS {noded_table};")
+                cur.execute(f"""
+                    CREATE TABLE {noded_table} AS
+                    SELECT 
+                        ROW_NUMBER() OVER () AS gid,
+                        geom AS the_geom
+                    FROM (
+                        SELECT (ST_Dump(ST_Node(ST_Union(the_geom)))).geom AS geom
+                        FROM {temp_snapped}
+                    ) AS dumped
+                    WHERE geom IS NOT NULL
+                      AND GeometryType(geom) = 'LINESTRING'
+                      AND ST_Length(geom) >= 0.01;
+                """)
+                print(i18n.t('log.st_union_node_dump_applied'))
+
+                # PASO 3: Preparar para pgRouting
+                cur.execute(f"ALTER TABLE {noded_table} ADD COLUMN IF NOT EXISTS source INTEGER;")
+                cur.execute(f"ALTER TABLE {noded_table} ADD COLUMN IF NOT EXISTS target INTEGER;")
+                cur.execute(f"ALTER TABLE {noded_table} ADD COLUMN IF NOT EXISTS cost DOUBLE PRECISION;")
+                cur.execute(f"ALTER TABLE {noded_table} ADD COLUMN IF NOT EXISTS reverse_cost DOUBLE PRECISION;")
+
+                cur.execute(f"""
+                    UPDATE {noded_table}
+                    SET cost = ST_Length(the_geom),
+                        reverse_cost = ST_Length(the_geom);
+                """)
+
+                cur.execute(f"CREATE INDEX ON {noded_table} USING GIST (the_geom);")
+
+                # Limpiar tabla temporal
+                cur.execute(f"DROP TABLE IF EXISTS {temp_snapped};")
+
+                # Contar resultado
+                cur.execute(f"SELECT COUNT(*) FROM {noded_table};")
+                count = cur.fetchone()[0]
+                print(i18n.t('log.edges_generated', count=count))
+
+                if count == 0:
+                    raise NetworkProcessingError(
+                        "El nodeo avanzado no generó aristas. "
+                        "Intentá reducir snap_tolerance o usar el método simple."
+                    )
     
     def delete_network(self, table_name: str) -> bool:
         """Elimina una red y TODAS sus tablas asociadas."""
@@ -277,11 +424,8 @@ class NetworkProcessor:
         return True
     
     def list_networks(self) -> List[Dict]:
-        """Lista todas las redes completas (con tabla de vértices)."""
         networks = []
-        
-        # PASO A: Obtener lista de tablas nodeadas
-        noded_tables = []
+
         try:
             with self._get_connection() as conn:
                 with conn.cursor() as cur:
@@ -293,14 +437,13 @@ class NetworkProcessor:
                     """)
                     noded_tables = [row[0] for row in cur.fetchall()]
         except Exception as e:
-            print(f"❌ Error listando tablas: {e}")
-            return networks
-        
-        # PASO B: Para cada tabla, verificar que esté COMPLETA
+            print(f"Error listing tables: {e}")
+            return networks  # ✅ Retorna lista vacía
+
         for noded_table in noded_tables:
             vertices_table = f"{noded_table}_vertices_pgr"
             network_id = noded_table.replace("_edges_noded", "")
-            
+
             try:
                 with self._get_connection() as conn:
                     with conn.cursor() as cur:
@@ -310,17 +453,17 @@ class NetworkProcessor:
                                 WHERE table_name = %s
                             );
                         """, (vertices_table,))
-                        
+
                         if not cur.fetchone()[0]:
-                            print(f"⚠️ Red incompleta (sin vértices): {network_id}")
+                            print(f"⚠️ Incomplete network: {network_id}")
                             continue
                         
                         cur.execute(f"SELECT COUNT(*) FROM {noded_table};")
                         edges = cur.fetchone()[0]
-                        
+
                         cur.execute(f"SELECT COUNT(*) FROM {vertices_table};")
                         vertices = cur.fetchone()[0]
-                        
+
                         networks.append({
                             "table_name": noded_table,
                             "network_id": network_id,
@@ -328,10 +471,10 @@ class NetworkProcessor:
                             "vertices": vertices
                         })
             except Exception as e:
-                print(f"⚠️ Error leyendo red {network_id}: {e}")
+                print(f"⚠️ Error reading network {network_id}: {e}")
                 continue
-        
-        return networks
+            
+        return networks  # ✅ Siempre retorna lista
     
     def network_exists(self, table_name: str) -> bool:
         """Verifica si una red existe (busca la tabla nodeada)."""
