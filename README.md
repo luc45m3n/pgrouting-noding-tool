@@ -2,7 +2,6 @@ Here is a complete `README.md` you can use for the project:
 
 ---
 
-```markdown
 # pgRouting Noding Tool
 
 A web application that automates the transformation of raw GeoJSON line data into
@@ -57,7 +56,7 @@ the graph correctly.
 
 ## Architecture
 
-```
+```bash
 ┌─────────────────────────────────┐
 │  Browser (Leaflet.js SPA)       │
 │  app.js · menu_principal.js     │
