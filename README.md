@@ -1,5 +1,3 @@
-Here is a complete `README.md` you can use for the project:
-
 ---
 
 # pgRouting Noding Tool
