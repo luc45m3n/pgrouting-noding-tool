@@ -222,7 +222,7 @@ onAdd: function (map) {
         if (this._overlays.length > 0) {
             const section3 = L.DomUtil.create('div', 'menu-section', this._contentContainer);
             const title3 = L.DomUtil.create('div', 'menu-section-title', section3);
-            title3.textContent =  $i18n.t('menu.layers');
+            title3.textContent =  i18n.t('menu.layers');
 
             this._overlays.forEach((item) => {
                 const row = L.DomUtil.create('div', 'menu-row', section3);
