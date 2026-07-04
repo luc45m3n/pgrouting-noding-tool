@@ -1,12 +1,10 @@
 // static/routing_panel.js
 // Panel flotante arrastrable para ruteo con Dijkstra y TSP
 
-// ✅ NUEVO: Extrae todas las coordenadas de un GeoJSON y las convierte a [lat, lng]
 function getRouteCoordinates(geojson) {
     let allCoords = [];
     
     const processCoords = (coords) => {
-        // GeoJSON viene como [lng, lat], Leaflet necesita [lat, lng]
         coords.forEach(c => allCoords.push([c[1], c[0]]));
     };
 
@@ -40,6 +38,11 @@ class RoutingPanel {
         this.createPanel();
         this.setupDrag();
         this.setupMapClicks();
+        
+        // ✅ NUEVO: Escuchar cambios de idioma
+        window.addEventListener('languageChanged', () => {
+            this.updatePanelTexts();
+        });
     }
     
     createPanel() {
@@ -49,58 +52,57 @@ class RoutingPanel {
         
         this.panel.innerHTML = `
             <div class="routing-panel-header">
-                <h3>🗺️ Ruteo</h3>
+                <h3 id="routingTitle">${i18n.t('routing.title')}</h3>
                 <div class="panel-controls">
-                    <button id="routingMinimize" title="Minimizar">−</button>
-                    <button id="routingClose" title="Cerrar">✕</button>
+                    <button id="routingMinimize" title="${i18n.t('routing.minimize')}">−</button>
+                    <button id="routingClose" title="${i18n.t('routing.close')}">✕</button>
                 </div>
             </div>
             <div class="routing-panel-body">
                 <div id="routingNetworkStatus" class="network-status">
-                    <strong>Red:</strong> <span id="routingNetworkName">Ninguna</span>
+                    <strong>${i18n.t('routing.network')}</strong> 
+                    <span id="routingNetworkName">${i18n.t('routing.noNetwork')}</span>
                 </div>
                 
                 <div class="routing-form-group">
-                    <label for="routingAlgorithm">Algoritmo:</label>
+                    <label for="routingAlgorithm">${i18n.t('routing.algorithm')}</label>
                     <select id="routingAlgorithm">
-                        <option value="dijkstra">Dijkstra (Origen → Destino)</option>
-                        <option value="tsp">TSP (Múltiples puntos)</option>
+                        <option value="dijkstra">${i18n.t('routing.dijkstra')}</option>
+                        <option value="tsp">${i18n.t('routing.tsp')}</option>
                     </select>
                 </div>
                 
                 <div class="routing-instructions" id="routingInstructions">
-                    <strong>📍 Modo Dijkstra:</strong><br>
-                    Hacé click en el mapa para marcar <strong>origen</strong> y <strong>destino</strong>.
+                    ${i18n.t('routing.instructions.dijkstra')}
                 </div>
                 
                 <div class="routing-form-group">
-                    <label>Puntos seleccionados:</label>
+                    <label>${i18n.t('routing.waypoints')}</label>
                     <ul id="waypointsList" class="waypoints-list">
                         <li style="color: #999; font-size: 12px; text-align: center; padding: 8px;">
-                            Sin puntos seleccionados
+                            ${i18n.t('routing.noWaypoints')}
                         </li>
                     </ul>
                 </div>
                 
                 <div class="routing-actions">
                     <button id="routingCalculate" class="routing-btn routing-btn-primary" disabled>
-                         Calcular
+                        ${i18n.t('routing.calculate')}
                     </button>
                     <button id="routingClearPoints" class="routing-btn routing-btn-secondary">
-                        ❌ Puntos
+                        ${i18n.t('routing.clearPoints')}
                     </button>
                     <button id="routingClearRoute" class="routing-btn routing-btn-danger">
-                        ❌ Ruta
+                        ${i18n.t('routing.clearRoute')}
                     </button>
                 </div>
                 
-                <!-- ✅ NUEVO: Botones de descarga (ocultos por defecto) -->
                 <div class="routing-actions" id="downloadActions" style="display: none; margin-top: 8px;">
                     <button id="downloadGeoJSON" class="routing-btn routing-btn-secondary" style="flex: 1;">
-                         Descargar GeoJSON
+                        ${i18n.t('routing.downloadGeoJSON')}
                     </button>
                     <button id="downloadGPX" class="routing-btn routing-btn-secondary" style="flex: 1;">
-                         Descargar GPX
+                        ${i18n.t('routing.downloadGPX')}
                     </button>
                 </div>
             </div>
@@ -108,6 +110,60 @@ class RoutingPanel {
         
         document.body.appendChild(this.panel);
         this.setupEventListeners();
+    }
+    
+    // Actualizar textos cuando cambia el idioma
+    updatePanelTexts() {
+        // 1. Título del panel
+        const title = this.panel.querySelector('h3');
+        if (title) title.textContent = i18n.t('routing.title');
+
+        // 2. Label "Red:" (está en #routingNetworkStatus strong)
+        const networkLabel = this.panel.querySelector('#routingNetworkStatus strong');
+        if (networkLabel) networkLabel.textContent = i18n.t('routing.network');
+
+        // 3. Label "Algoritmo:" (label con for="routingAlgorithm")
+        const algorithmLabel = this.panel.querySelector('label[for="routingAlgorithm"]');
+        if (algorithmLabel) algorithmLabel.textContent = i18n.t('routing.algorithm');
+
+        // 4. Label "Puntos seleccionados:" (label sin atributo for)
+        const waypointsLabel = this.panel.querySelector('.routing-form-group label:not([for])');
+        if (waypointsLabel) waypointsLabel.textContent = i18n.t('routing.waypoints');
+
+        // 5. Opciones del select
+        const select = document.getElementById('routingAlgorithm');
+        if (select) {
+            select.options[0].textContent = i18n.t('routing.dijkstra');
+            select.options[1].textContent = i18n.t('routing.tsp');
+        }
+
+        // 6. Botones de acción
+        const calcBtn = document.getElementById('routingCalculate');
+        if (calcBtn && !calcBtn.disabled) {
+            calcBtn.textContent = i18n.t('routing.calculate');
+        }
+
+        const clearPointsBtn = document.getElementById('routingClearPoints');
+        if (clearPointsBtn) clearPointsBtn.textContent = i18n.t('routing.clearPoints');
+
+        const clearRouteBtn = document.getElementById('routingClearRoute');
+        if (clearRouteBtn) clearRouteBtn.textContent = i18n.t('routing.clearRoute');
+
+        // 7. Botones de descarga
+        const downloadGeoJSONBtn = document.getElementById('downloadGeoJSON');
+        if (downloadGeoJSONBtn) downloadGeoJSONBtn.textContent = i18n.t('routing.downloadGeoJSON');
+
+        const downloadGPXBtn = document.getElementById('downloadGPX');
+        if (downloadGPXBtn) downloadGPXBtn.textContent = i18n.t('routing.downloadGPX');
+
+        // 8. Actualizar instrucciones
+        this.updateInstructions();
+
+        // 9. Actualizar lista de waypoints
+        this.renderWaypointsList();
+
+        // 10. Actualizar estado de red
+        this.updateNetworkStatus();
     }
     
     setupEventListeners() {
@@ -129,7 +185,6 @@ class RoutingPanel {
         document.getElementById('routingClearPoints').addEventListener('click', () => this.clearWaypoints());
         document.getElementById('routingClearRoute').addEventListener('click', () => this.clearRoute());
         
-        // ✅ NUEVO: Event listeners de descarga
         document.getElementById('downloadGeoJSON').addEventListener('click', () => this.downloadRoute('geojson'));
         document.getElementById('downloadGPX').addEventListener('click', () => this.downloadRoute('gpx'));
     }
@@ -173,7 +228,7 @@ class RoutingPanel {
             if (!this.isVisible) return;
             if (!window.activeNetwork) {
                 if (window.showToast) {
-                    window.showToast('⚠️ Primero cargá una red ruteable', 'warning', 3000);
+                    window.showToast(i18n.t('status.firstLoadNetwork'), 'warning', 3000);
                 }
                 return;
             }
@@ -185,15 +240,9 @@ class RoutingPanel {
     updateInstructions() {
         const instructions = document.getElementById('routingInstructions');
         if (this.algorithm === 'dijkstra') {
-            instructions.innerHTML = `
-                <strong> Modo Dijkstra:</strong><br>
-                Hacé click en el mapa para marcar <strong>origen</strong> y <strong>destino</strong>.
-            `;
+            instructions.innerHTML = i18n.t('routing.instructions.dijkstra');
         } else {
-            instructions.innerHTML = `
-                <strong>️ Modo TSP:</strong><br>
-                Hacé click en el mapa para agregar <strong>múltiples puntos</strong> de visita (mínimo 2).
-            `;
+            instructions.innerHTML = i18n.t('routing.instructions.tsp');
         }
     }
     
@@ -202,14 +251,14 @@ class RoutingPanel {
         
         if (this.algorithm === 'dijkstra' && this.waypoints.length >= 2) {
             if (window.showToast) {
-                window.showToast('⚠️ Dijkstra solo necesita 2 puntos (origen y destino)', 'warning', 3000);
+                window.showToast(i18n.t('status.dijkstraTwoPoints'), 'warning', 3000);
             }
             return;
         }
         
         try {
             if (window.showToast) {
-                window.showToast('🔍 Buscando nodo más cercano...', 'success', 2000);
+                window.showToast(i18n.t('status.searchingNode'), 'success', 2000);
             }
             
             const node = await window.getNearestNode(lng, lat);
@@ -225,7 +274,7 @@ class RoutingPanel {
             
             marker.bindPopup(`
                 <strong>${this.getWaypointLabel(this.waypoints.length)}</strong><br>
-                Nodo ID: ${node.id}<br>
+                ${i18n.t('routing.node')} ID: ${node.id}<br>
                 Lat: ${lat.toFixed(6)}<br>
                 Lng: ${lng.toFixed(6)}
             `);
@@ -244,7 +293,7 @@ class RoutingPanel {
         } catch (err) {
             console.error('Error agregando waypoint:', err);
             if (window.showToast) {
-                window.showToast(`❌ Error: ${err.message}`, 'error', 4000);
+                window.showToast(`${i18n.t('error.serverError')} ${err.message}`, 'error', 4000);
             }
         }
     }
@@ -258,9 +307,9 @@ class RoutingPanel {
     
     getWaypointLabel(index) {
         if (this.algorithm === 'dijkstra') {
-            return index === 0 ? '🟢 Origen' : '🔴 Destino';
+            return index === 0 ? i18n.t('routing.origin') : i18n.t('routing.destination');
         }
-        return `📍 Punto ${index + 1}`;
+        return `${i18n.t('routing.point')} ${index + 1}`;
     }
     
     renderWaypointsList() {
@@ -269,7 +318,7 @@ class RoutingPanel {
         if (this.waypoints.length === 0) {
             list.innerHTML = `
                 <li style="color: #999; font-size: 12px; text-align: center; padding: 8px;">
-                    Sin puntos seleccionados
+                    ${i18n.t('routing.noWaypoints')}
                 </li>
             `;
             return;
@@ -280,9 +329,9 @@ class RoutingPanel {
                 <span class="wp-number">${index + 1}</span>
                 <span class="wp-coords">
                     ${this.getWaypointLabel(index)}<br>
-                    Nodo: ${wp.nodeId}
+                    ${i18n.t('routing.node')}: ${wp.nodeId}
                 </span>
-                <button class="wp-remove" data-index="${index}" title="Eliminar">
+                <button class="wp-remove" data-index="${index}" title="${i18n.t('routing.remove')}">
                     ✕
                 </button>
             </li>
@@ -315,13 +364,12 @@ class RoutingPanel {
         this.updateCalculateButton();
     }
     
-    // ✅ MODIFICADO: clearRoute ahora oculta los botones de descarga
     clearRoute() {
         if (this.routeLayer) {
             this.map.removeLayer(this.routeLayer);
             this.routeLayer = null;
         }
-        this.routeGeoJSON = null;  // ✅ NUEVO: limpiar GeoJSON guardado
+        this.routeGeoJSON = null;
         this.hideDownloadButtons();
     }
     
@@ -336,7 +384,7 @@ class RoutingPanel {
         
         const btn = document.getElementById('routingCalculate');
         btn.disabled = true;
-        btn.innerHTML = '<div class="routing-loading"><div class="spinner"></div>Calculando...</div>';
+        btn.innerHTML = `<div class="routing-loading"><div class="spinner"></div>${i18n.t('routing.calculating')}</div>`;
         
         try {
             this.clearRoute();
@@ -350,16 +398,15 @@ class RoutingPanel {
         } catch (err) {
             console.error('Error calculando ruta:', err);
             if (window.showToast) {
-                window.showToast(`❌ Error: ${err.message}`, 'error', 5000);
+                window.showToast(`${i18n.t('error.calculation')}: ${err.message}`, 'error', 5000);
             }
         } finally {
             btn.disabled = false;
-            btn.innerHTML = ' Calcular';
+            btn.innerHTML = i18n.t('routing.calculate');
         }
     }
     
-    // ✅ MODIFICADO: muestra botones de descarga al terminar
-        async calculateDijkstra() {
+    async calculateDijkstra() {
         const startNode = this.waypoints[0].nodeId;
         const endNode = this.waypoints[1].nodeId;
         
@@ -373,7 +420,6 @@ class RoutingPanel {
 
         const routeCoords = getRouteCoordinates(geomObject);
         
-        // ✅ CAMBIO CLAVE: usar L.featureGroup() en lugar de L.layerGroup()
         const routeGroup = L.featureGroup();
 
         const visibleLayer = L.polyline(routeCoords, {
@@ -391,7 +437,7 @@ class RoutingPanel {
             interactive: true
         });
 
-        hitAreaLayer.bindTooltip(` Distancia total: ${distanceText}`, {
+        hitAreaLayer.bindTooltip(`${i18n.t('routing.distance')} ${distanceText}`, {
             sticky: true,
             direction: 'top',
             offset: [0, -10],
@@ -415,20 +461,18 @@ class RoutingPanel {
         this.routeLayer = routeGroup;
         this.routeGeoJSON = geomObject;
 
-        // ✅ Ahora sí funciona getBounds()
         if (routeGroup.getBounds().isValid()) {
             this.map.fitBounds(routeGroup.getBounds(), { padding: [50, 50] });
         }
 
         if (window.showToast) {
-            window.showToast(`✅ Ruta: ${distanceText}`, 'success', 4000);
+            window.showToast(`${i18n.t('routing.routeCalculated')}: ${distanceText}`, 'success', 4000);
         }
 
         this.showDownloadButtons();
     }
     
-    // ✅ MODIFICADO: muestra botones de descarga al terminar
-        async calculateTSP() {
+    async calculateTSP() {
         const nodeIds = this.waypoints.map(wp => wp.nodeId);
         
         const result = await window.calculateTSP(nodeIds, nodeIds[0]);
@@ -440,7 +484,6 @@ class RoutingPanel {
 
         const routeCoords = getRouteCoordinates(result.geojson);
         
-        // ✅ CAMBIO CLAVE: usar L.featureGroup()
         const routeGroup = L.featureGroup();
 
         const visibleLayer = L.polyline(routeCoords, {
@@ -459,7 +502,7 @@ class RoutingPanel {
             interactive: true
         });
 
-        hitAreaLayer.bindTooltip(` Distancia total: ${distanceText}`, {
+        hitAreaLayer.bindTooltip(`${i18n.t('routing.distance')} ${distanceText}`, {
             sticky: true,
             direction: 'top',
             offset: [0, -10],
@@ -481,20 +524,19 @@ class RoutingPanel {
         routeGroup.addTo(this.map);
 
         this.routeLayer = routeGroup;
-        this.routeGeoJSON = result.geojson;  // ✅ CORREGIDO: era geomObject (no existía)
+        this.routeGeoJSON = result.geojson;
 
         if (routeGroup.getBounds().isValid()) {
             this.map.fitBounds(routeGroup.getBounds(), { padding: [50, 50] });
         }
 
         if (window.showToast) {
-            window.showToast(`✅ TSP: ${result.tsp_order.length} puntos, ${distanceText}`, 'success', 4000);
+            window.showToast(`${i18n.t('routing.tspCalculated')}: ${result.tsp_order.length} ${i18n.t('routing.points')}, ${distanceText}`, 'success', 4000);
         }
 
         this.showDownloadButtons();
     }
 
-    // ✅ MEJORADO: Maneja LineString, MultiLineString y valida datos
     calculateDistanceMeters(geometry) {
         if (!geometry || !geometry.coordinates) return 0;
         
@@ -502,7 +544,6 @@ class RoutingPanel {
         const type = geometry.type;
         const coords = geometry.coordinates;
         
-        // Función auxiliar para calcular distancia de una línea
         const lineDistance = (lineCoords) => {
             let dist = 0;
             for (let i = 0; i < lineCoords.length - 1; i++) {
@@ -524,7 +565,6 @@ class RoutingPanel {
         return totalDistance;
     }
     
-    // ✅ NUEVO: Calcular distancia total de todo el GeoJSON (FeatureCollection)
     calculateTotalDistance(geojson) {
         let total = 0;
         if (geojson.type === 'FeatureCollection' && geojson.features) {
@@ -548,7 +588,7 @@ class RoutingPanel {
             nameEl.textContent = window.activeNetwork;
         } else {
             statusEl.classList.add('error');
-            nameEl.textContent = 'Ninguna (cargá una red primero)';
+            nameEl.textContent = i18n.t('routing.noNetworkHint');
         }
     }
     
@@ -558,7 +598,7 @@ class RoutingPanel {
         this.updateNetworkStatus();
         
         const toggleBtn = document.getElementById('toggleRoutingPanel');
-        if (toggleBtn) toggleBtn.textContent = i18n.t('menu.hide_routing');
+        if (toggleBtn) toggleBtn.textContent = i18n.t('menu.routing.hide');
     }
     
     hide() {
@@ -576,8 +616,6 @@ class RoutingPanel {
             this.show();
         }
     }
-    
-    // ✅ NUEVO: Métodos de descarga (agregar antes del cierre de la clase)
     
     showDownloadButtons() {
         const downloadActions = document.getElementById('downloadActions');
@@ -600,14 +638,12 @@ class RoutingPanel {
         }
         
         try {
-            // Obtener GeoJSON de la ruta (Leaflet ya está en WGS84)
             const geojson = JSON.parse(JSON.stringify(this.routeGeoJSON));
             
-            // Si es FeatureCollection, agregar metadatos
             if (geojson.type === 'FeatureCollection') {
                 geojson.properties = {
-                    name: 'Ruta calculada',
-                    description: 'Ruta generada con WebGIS Routing',
+                    name: i18n.t('routing.routeName'),
+                    description: i18n.t('routing.routeDescription'),
                     algorithm: this.algorithm,
                     timestamp: new Date().toISOString(),
                     network: window.activeNetwork || 'unknown'
@@ -621,13 +657,13 @@ class RoutingPanel {
             }
             
             if (window.showToast) {
-                window.showToast('Ruta descargada en formato ' + format.toUpperCase(), 'success', 3000);
+                window.showToast(`${i18n.t('routing.downloaded')} ${format.toUpperCase()}`, 'success', 3000);
             }
             
         } catch (err) {
             console.error('Error descargando ruta:', err);
             if (window.showToast) {
-                window.showToast('Error al descargar: ' + err.message, 'error', 4000);
+                window.showToast(`${i18n.t('routing.errorDownload')}: ${err.message}`, 'error', 4000);
             }
         }
     }
@@ -681,7 +717,6 @@ class RoutingPanel {
                     gpx += '    <trkseg>\n';
                     
                     geom.coordinates.forEach((coord) => {
-                        // coord es [lng, lat] en WGS84
                         gpx += '      <trkpt lat="' + coord[1] + '" lon="' + coord[0] + '"></trkpt>\n';
                     });
                     
@@ -696,5 +731,4 @@ class RoutingPanel {
     }
 }
 
-// Exportar globalmente
 window.RoutingPanel = RoutingPanel;
