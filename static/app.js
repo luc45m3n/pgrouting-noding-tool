@@ -30,7 +30,7 @@ function initMap() {
     if (typeof RoutingPanel !== 'undefined') {
         routingPanel = new RoutingPanel(mapInstance);
         window.routingPanel = routingPanel;
-        console.log(i18n.t('menu.routing_created'));
+        console.log(i18n.t('log.panelCreated'));
     } else {
         console.error(i18n.t('menu.routing_not_defined'));
     }
